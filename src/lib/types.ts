@@ -11,7 +11,7 @@ export interface Product {
 export interface Category {
   id: number;
   name: string;
-  icon: React.ComponentType<{ className?: string }>;
+  iconName: string;
 }
 
 export interface OrderItem {
@@ -33,7 +33,11 @@ export interface User {
 }
 
 export interface Shift {
-  isActive: boolean;
+  id: number;
+  userId: number;
+  startTime: string;
+  endTime?: string | null;
   startingCash: number;
-  startTime: string | null;
+  endingCash?: number | null;
+  isActive: boolean;
 }

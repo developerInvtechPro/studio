@@ -34,10 +34,14 @@ function StartShiftPage() {
     },
   });
 
-  const onSubmit = (data: StartShiftFormValues) => {
+  const onSubmit = async (data: StartShiftFormValues) => {
+    if (!user) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Usuario no encontrado.' });
+        return;
+    }
     setLoading(true);
     try {
-      startShift(data.startingCash);
+      await startShift(data.startingCash);
       toast({
         title: 'Turno Iniciado',
         description: `El turno ha comenzado con L ${data.startingCash.toFixed(2)} en caja.`,

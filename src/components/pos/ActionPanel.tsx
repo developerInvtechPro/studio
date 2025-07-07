@@ -1,11 +1,15 @@
 
 'use client';
 
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Settings, Calendar, Ban, Search, Tag, Receipt, PauseCircle, LogOut, Lock } from 'lucide-react';
 import { useSession } from '@/context/SessionContext';
 import { useRouter } from 'next/navigation';
+import { getTablesAction } from '@/app/actions';
+import type { Table } from '@/lib/types';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface ActionPanelProps {
     onClearOrder: () => void;
@@ -14,17 +18,33 @@ interface ActionPanelProps {
 export default function ActionPanel({ onClearOrder }: ActionPanelProps) {
   const { logout, endShift } = useSession();
   const router = useRouter();
+  const [tables, setTables] = useState<Table[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchTables() {
+      try {
+        setLoading(true);
+        const tablesData = await getTablesAction();
+        setTables(tablesData);
+      } catch (error) {
+        console.error("Failed to fetch tables", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchTables();
+  }, []);
 
   const handleLogout = async () => {
     await logout();
     router.push('/login');
   };
 
-  const handleEndShift = () => {
-    endShift();
-    router.push('/start-shift');
+  const handleEndShift = async () => {
+    await endShift();
+    router.push('/login');
   };
-
 
   const mainActions = [
     { label: 'SUSPENDER VENTA', icon: PauseCircle },
@@ -33,8 +53,6 @@ export default function ActionPanel({ onClearOrder }: ActionPanelProps) {
     { label: 'BUSCAR PRODUCTO', icon: Search },
     { label: 'DESCUENTO', icon: Tag },
   ];
-
-  const tables = Array.from({ length: 12 }, (_, i) => i + 1);
 
   return (
     <aside className="w-[220px] bg-sidebar text-sidebar-foreground flex flex-col p-2 gap-2 border-r border-sidebar-border">
@@ -57,11 +75,17 @@ export default function ActionPanel({ onClearOrder }: ActionPanelProps) {
       </Button>
       <ScrollArea className="flex-1 my-2">
         <div className="grid grid-cols-2 gap-2 pr-2">
-          {tables.map((table) => (
-            <Button key={table} variant="ghost" className="aspect-square h-auto hover:bg-sidebar-accent border border-sidebar-border">
-              {table}
-            </Button>
-          ))}
+          {loading ? (
+            Array.from({ length: 12 }).map((_, i) => (
+                <Skeleton key={i} className="aspect-square h-auto w-full" />
+            ))
+          ) : (
+            tables.map((table) => (
+              <Button key={table.id} variant="ghost" className="aspect-square h-auto hover:bg-sidebar-accent border border-sidebar-border">
+                {table.name}
+              </Button>
+            ))
+          )}
         </div>
       </ScrollArea>
        <div className="mt-auto flex flex-col gap-2">
