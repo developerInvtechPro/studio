@@ -68,10 +68,10 @@ async function recalculateOrderTotals(db: Database, orderId: number): Promise<vo
 
   await db.run(
     'UPDATE orders SET subtotal = ?, tax_amount = ?, total_amount = ?, discount_amount = ? WHERE id = ?',
-    subtotal,
-    tax,
-    total,
-    discountAmount,
+    subtotal.toFixed(2),
+    tax.toFixed(2),
+    total.toFixed(2),
+    discountAmount.toFixed(2),
     orderId
   );
 }

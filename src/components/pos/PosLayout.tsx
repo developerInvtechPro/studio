@@ -8,7 +8,7 @@ import ProductGrid from './ProductGrid';
 import { useToast } from '@/hooks/use-toast';
 import ActionPanel from './ActionPanel';
 import { Button } from '@/components/ui/button';
-import { Home, Move } from 'lucide-react';
+import { Home } from 'lucide-react';
 import { useSession } from '@/context/SessionContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import DiscountDialog from './DiscountDialog';
