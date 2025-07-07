@@ -291,3 +291,37 @@ export async function finalizeOrder(orderId: number): Promise<{ success: boolean
     return { success: false, error: 'No se pudo finalizar la orden.' };
   }
 }
+
+export async function updateTableStatusAction(tableId: number, status: 'available' | 'occupied' | 'reserved'): Promise<{ success: boolean; error?: string }> {
+    const db = await getDbConnection();
+    try {
+        await db.run("UPDATE tables SET status = ? WHERE id = ?", status, tableId);
+        return { success: true };
+    } catch (error: any) {
+        console.error('Failed to update table status:', error);
+        return { success: false, error: 'No se pudo actualizar el estado de la mesa.' };
+    }
+}
+
+export async function transferOrderAction(orderId: number, oldTableId: number, newTableId: number): Promise<{ success: boolean; error?: string }> {
+  const db = await getDbConnection();
+  await db.run('BEGIN TRANSACTION');
+  try {
+    const newTable = await db.get<Table>("SELECT * FROM tables WHERE id = ?", newTableId);
+    if (newTable?.status !== 'available') {
+        await db.run('ROLLBACK');
+        return { success: false, error: "La mesa de destino no está disponible." };
+    }
+
+    await db.run("UPDATE orders SET table_id = ?, customer_name = ? WHERE id = ?", newTableId, `Mesa ${newTableId}`, orderId);
+    await db.run("UPDATE tables SET status = 'occupied' WHERE id = ?", newTableId);
+    await db.run("UPDATE tables SET status = 'available' WHERE id = ?", oldTableId);
+    
+    await db.run('COMMIT');
+    return { success: true };
+  } catch (error: any) {
+    await db.run('ROLLBACK');
+    console.error("Failed to transfer order:", error);
+    return { success: false, error: "No se pudo trasladar la orden." };
+  }
+}

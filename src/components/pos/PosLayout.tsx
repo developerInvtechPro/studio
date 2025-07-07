@@ -8,8 +8,9 @@ import ProductGrid from './ProductGrid';
 import { useToast } from '@/hooks/use-toast';
 import ActionPanel from './ActionPanel';
 import { Button } from '@/components/ui/button';
-import { Home } from 'lucide-react';
+import { Home, Move } from 'lucide-react';
 import { useSession } from '@/context/SessionContext';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { 
     getTablesAction,
     getOpenOrderForTable,
@@ -17,6 +18,8 @@ import {
     updateOrderItemQuantity,
     removeItemFromOrder,
     cancelOrder,
+    updateTableStatusAction,
+    transferOrderAction
 } from '@/app/actions';
 
 export default function PosLayout() {
@@ -25,6 +28,9 @@ export default function PosLayout() {
   const [tables, setTables] = useState<Table[]>([]);
   const [loadingTables, setLoadingTables] = useState(true);
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);
+  const [isReserveModalOpen, setReserveModalOpen] = useState(false);
+  const [isTransferModalOpen, setTransferModalOpen] = useState(false);
+  const [transferTargetTable, setTransferTargetTable] = useState<Table | null>(null);
 
   const { toast } = useToast();
   const [time, setTime] = useState('');
@@ -78,11 +84,18 @@ export default function PosLayout() {
         toast({ variant: 'destructive', title: 'Acción inválida', description: 'Por favor, seleccione una mesa antes de agregar productos.' });
         return;
     }
+    if (selectedTable.status === 'reserved') {
+        toast({ variant: 'destructive', title: 'Acción inválida', description: 'No se puede agregar productos a una mesa reservada.' });
+        return;
+    }
 
     setLoadingOrder(true);
     try {
         const updatedOrder = await addItemToOrder(selectedTable.id, shift.id, product.id);
         setActiveOrder(updatedOrder);
+        if (selectedTable.status === 'available') {
+            fetchTables();
+        }
     } catch (error) {
         console.error(error);
         toast({ variant: 'destructive', title: 'Error', description: 'No se pudo agregar el producto a la orden.' });
@@ -135,7 +148,45 @@ export default function PosLayout() {
   const handleOrderFinalized = useCallback(() => {
     setActiveOrder(null);
     fetchTables();
-  }, [fetchTables])
+  }, [fetchTables]);
+
+  const handleReserveTable = async (table: Table) => {
+    if (table.status === 'occupied') {
+        toast({ variant: 'destructive', title: 'Error', description: 'No se puede reservar una mesa ocupada.' });
+        return;
+    }
+    const newStatus = table.status === 'reserved' ? 'available' : 'reserved';
+    const result = await updateTableStatusAction(table.id, newStatus);
+    if (result.success) {
+        toast({ title: 'Éxito', description: `Mesa ${table.name} ha sido ${newStatus === 'reserved' ? 'reservada' : 'liberada'}.` });
+        fetchTables();
+    } else {
+        toast({ variant: 'destructive', title: 'Error', description: result.error });
+    }
+  };
+
+  const handleTransferConfirm = async () => {
+    if (!selectedTable || !activeOrder || !transferTargetTable) return;
+    
+    setLoadingOrder(true);
+    const result = await transferOrderAction(activeOrder.id, selectedTable.id, transferTargetTable.id);
+    setLoadingOrder(false);
+
+    if (result.success) {
+        toast({ title: 'Éxito', description: `La orden ha sido trasladada a ${transferTargetTable.name}.` });
+        fetchTables();
+        const newSelectedTable = tables.find(t => t.id === transferTargetTable.id) || null;
+        if(newSelectedTable) {
+            const updatedTable = {...newSelectedTable, status: 'occupied' as const};
+            setSelectedTable(updatedTable);
+        }
+        setTransferModalOpen(false);
+        setTransferTargetTable(null);
+    } else {
+        toast({ variant: 'destructive', title: 'Error', description: result.error });
+    }
+  };
+
 
   return (
     <div className="h-screen w-screen flex flex-col font-sans text-sm">
@@ -146,6 +197,9 @@ export default function PosLayout() {
             loading={loadingTables}
             selectedTable={selectedTable}
             onSelectTable={setSelectedTable}
+            onOpenReserveDialog={() => setReserveModalOpen(true)}
+            onOpenTransferDialog={() => setTransferModalOpen(true)}
+            hasOpenOrder={!!activeOrder && activeOrder.items.length > 0}
         />
         
         <main className="flex-1 flex flex-col p-2 md:p-4 gap-4 bg-muted/30">
@@ -178,6 +232,61 @@ export default function PosLayout() {
             <span>Usuario: {user?.username || 'N/A'}</span>
             <span>{time}</span>
       </footer>
+
+      {/* Reservation Dialog */}
+        <Dialog open={isReserveModalOpen} onOpenChange={setReserveModalOpen}>
+            <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                    <DialogTitle>Reservar Mesas</DialogTitle>
+                    <DialogDescription>
+                        Haga clic en una mesa para reservarla o liberarla. Las mesas ocupadas no se pueden reservar.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="grid grid-cols-4 gap-4 py-4">
+                    {tables.map((table) => (
+                        <Button
+                            key={table.id}
+                            variant={table.status === 'reserved' ? 'default' : 'outline'}
+                            className={table.status === 'reserved' ? 'bg-yellow-500 hover:bg-yellow-600' : ''}
+                            onClick={() => handleReserveTable(table)}
+                            disabled={table.status === 'occupied'}
+                        >
+                            {table.name}
+                        </Button>
+                    ))}
+                </div>
+            </DialogContent>
+        </Dialog>
+        
+        {/* Transfer Dialog */}
+        <Dialog open={isTransferModalOpen} onOpenChange={(isOpen) => { if(!isOpen) { setTransferTargetTable(null); } setTransferModalOpen(isOpen); }}>
+            <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                    <DialogTitle>Trasladar Orden de Mesa</DialogTitle>
+                    <DialogDescription>
+                        Trasladando orden de <strong>{selectedTable?.name}</strong>. Seleccione la mesa de destino.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="grid grid-cols-4 gap-4 py-4">
+                    {tables.filter(t => t.status === 'available').map((table) => (
+                        <Button
+                            key={table.id}
+                            variant={transferTargetTable?.id === table.id ? 'secondary' : 'outline'}
+                            onClick={() => setTransferTargetTable(table)}
+                        >
+                            {table.name}
+                        </Button>
+                    ))}
+                </div>
+                 <DialogFooter>
+                    <Button variant="ghost" onClick={() => setTransferModalOpen(false)}>Cancelar</Button>
+                    <Button onClick={handleTransferConfirm} disabled={!transferTargetTable}>
+                        Confirmar Traslado
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+
     </div>
   );
 }
