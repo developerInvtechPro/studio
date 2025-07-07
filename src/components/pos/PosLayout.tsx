@@ -9,11 +9,13 @@ import { useToast } from '@/hooks/use-toast';
 import ActionPanel from './ActionPanel';
 import { Button } from '@/components/ui/button';
 import { Home } from 'lucide-react';
+import { useSession } from '@/context/SessionContext';
 
 export default function PosLayout() {
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const { toast } = useToast();
   const [time, setTime] = useState('');
+  const { user } = useSession();
 
   useEffect(() => {
     const updateTime = () => setTime(new Date().toLocaleString('es-HN'));
@@ -87,7 +89,7 @@ export default function PosLayout() {
         </aside>
       </div>
       <footer className="h-8 px-4 bg-blue-700 text-white flex justify-between items-center text-xs z-10">
-            <span>Usuario: Cajero General</span>
+            <span>Usuario: {user?.email || 'N/A'}</span>
             <span>{time}</span>
       </footer>
     </div>

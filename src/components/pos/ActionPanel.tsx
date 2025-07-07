@@ -3,13 +3,29 @@
 
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Settings, Calendar, Ban, Search, Tag, Receipt, PauseCircle } from 'lucide-react';
+import { Settings, Calendar, Ban, Search, Tag, Receipt, PauseCircle, LogOut, Lock } from 'lucide-react';
+import { useSession } from '@/context/SessionContext';
+import { useRouter } from 'next/navigation';
 
 interface ActionPanelProps {
     onClearOrder: () => void;
 }
 
 export default function ActionPanel({ onClearOrder }: ActionPanelProps) {
+  const { logout, endShift } = useSession();
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    await logout();
+    router.push('/login');
+  };
+
+  const handleEndShift = () => {
+    endShift();
+    router.push('/start-shift');
+  };
+
+
   const mainActions = [
     { label: 'SUSPENDER VENTA', icon: PauseCircle },
     { label: 'ANULAR PRODUCTO', icon: Ban },
@@ -48,9 +64,17 @@ export default function ActionPanel({ onClearOrder }: ActionPanelProps) {
           ))}
         </div>
       </ScrollArea>
-      <Button variant="ghost" className="w-full justify-start hover:bg-sidebar-accent">
-        <Settings className="mr-2 h-4 w-4" /> Admin
-      </Button>
+       <div className="mt-auto flex flex-col gap-2">
+        <Button onClick={handleEndShift} variant="ghost" className="w-full justify-start hover:bg-sidebar-accent">
+          <Lock className="mr-2 h-4 w-4" /> Finalizar Turno
+        </Button>
+         <Button onClick={handleLogout} variant="ghost" className="w-full justify-start text-destructive/80 hover:bg-destructive/10 hover:text-destructive">
+            <LogOut className="mr-2 h-4 w-4" /> Cerrar Sesión
+        </Button>
+        <Button variant="ghost" className="w-full justify-start hover:bg-sidebar-accent">
+          <Settings className="mr-2 h-4 w-4" /> Admin
+        </Button>
+       </div>
     </aside>
   );
 }
