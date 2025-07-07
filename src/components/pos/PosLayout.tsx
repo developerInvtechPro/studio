@@ -99,45 +99,40 @@ export default function PosLayout() {
     }
 
     setLoadingOrder(true);
-    try {
-        const updatedOrder = await addItemToOrder(selectedTable.id, shift.id, product.id);
-        setActiveOrder(updatedOrder);
+    const result = await addItemToOrder(selectedTable.id, shift.id, product.id);
+    
+    if (result.success && result.data) {
+        setActiveOrder(result.data);
         if (selectedTable.status === 'available') {
             fetchTables();
         }
-    } catch (error) {
-        console.error(error);
-        toast({ variant: 'destructive', title: 'Error', description: 'No se pudo agregar el producto a la orden.' });
-    } finally {
-        setLoadingOrder(false);
+    } else {
+        toast({ variant: 'destructive', title: 'Error', description: result.error || 'No se pudo agregar el producto a la orden.' });
     }
+    setLoadingOrder(false);
   };
 
   const handleUpdateQuantity = async (orderItemId: number, newQuantity: number) => {
     setLoadingOrder(true);
-    try {
-        const updatedOrder = await updateOrderItemQuantity(orderItemId, newQuantity);
-        setActiveOrder(updatedOrder);
-    } catch (error) {
-        console.error(error);
-        toast({ variant: 'destructive', title: 'Error', description: 'No se pudo actualizar la cantidad.' });
-    } finally {
-        setLoadingOrder(false);
+    const result = await updateOrderItemQuantity(orderItemId, newQuantity);
+    if (result.success && result.data) {
+        setActiveOrder(result.data);
+    } else {
+        toast({ variant: 'destructive', title: 'Error', description: result.error || 'No se pudo actualizar la cantidad.' });
     }
+    setLoadingOrder(false);
   };
   
   const handleRemoveItem = async (orderItemId: number) => {
     setLoadingOrder(true);
-    try {
-        const updatedOrder = await removeItemFromOrder(orderItemId);
-        setActiveOrder(updatedOrder);
+    const result = await removeItemFromOrder(orderItemId);
+    if (result.success && result.data) {
+        setActiveOrder(result.data);
         toast({title: "Producto removido", description: "El producto ha sido removido de la orden."});
-    } catch (error) {
-        console.error(error);
-        toast({ variant: 'destructive', title: 'Error', description: 'No se pudo remover el producto.' });
-    } finally {
-        setLoadingOrder(false);
+    } else {
+        toast({ variant: 'destructive', title: 'Error', description: result.error || 'No se pudo remover el producto.' });
     }
+    setLoadingOrder(false);
   };
 
   const handleClearOrder = useCallback(async () => {
@@ -200,16 +195,15 @@ export default function PosLayout() {
   const handleApplyDiscount = async (percentage: number) => {
     if (!activeOrder) return;
     setLoadingOrder(true);
-    try {
-        const updatedOrder = await applyDiscountAction(activeOrder.id, percentage);
-        setActiveOrder(updatedOrder);
+    const result = await applyDiscountAction(activeOrder.id, percentage);
+    if (result.success && result.data) {
+        setActiveOrder(result.data);
         setDiscountDialogOpen(false);
         toast({ title: 'Descuento aplicado', description: `Se aplicó un ${percentage}% de descuento.` });
-    } catch (error: any) {
-        toast({ variant: 'destructive', title: 'Error', description: error.message || 'No se pudo aplicar el descuento.' });
-    } finally {
-        setLoadingOrder(false);
+    } else {
+        toast({ variant: 'destructive', title: 'Error', description: result.error || 'No se pudo aplicar el descuento.' });
     }
+    setLoadingOrder(false);
   };
 
 

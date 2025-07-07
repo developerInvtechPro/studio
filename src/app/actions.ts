@@ -198,7 +198,7 @@ export async function getOpenOrderForTable(tableId: number): Promise<Order | nul
     return getOrderFromDb(db, openOrderHeader.id);
 }
 
-export async function addItemToOrder(tableId: number, shiftId: number, productId: number): Promise<Order> {
+export async function addItemToOrder(tableId: number, shiftId: number, productId: number): Promise<{ success: boolean; data?: Order; error?: string }> {
     const db = await getDbConnection();
     await db.run('BEGIN TRANSACTION');
 
@@ -239,34 +239,45 @@ export async function addItemToOrder(tableId: number, shiftId: number, productId
 
         const fullOrder = await getOrderFromDb(db, order.id);
         if (!fullOrder) throw new Error("Could not retrieve updated order.");
-        return fullOrder;
+        return { success: true, data: fullOrder };
 
-    } catch (error) {
+    } catch (error: any) {
         await db.run('ROLLBACK');
         console.error("Failed to add item to order:", error);
-        throw new Error("Could not add item to order.");
+        return { success: false, error: error.message || "Could not add item to order." };
     }
 }
 
 
-export async function updateOrderItemQuantity(orderItemId: number, newQuantity: number): Promise<Order> {
+export async function updateOrderItemQuantity(orderItemId: number, newQuantity: number): Promise<{ success: boolean; data?: Order; error?: string }> {
     const db = await getDbConnection();
-    const item = await db.get<{ order_id: number }>("SELECT order_id FROM order_items WHERE id = ?", orderItemId);
-    if (!item) throw new Error("Item not found");
+    await db.run('BEGIN TRANSACTION');
+    try {
+        const item = await db.get<{ order_id: number }>("SELECT order_id FROM order_items WHERE id = ?", orderItemId);
+        if (!item) throw new Error("Item no encontrado.");
 
-    if (newQuantity < 1) {
-        await db.run("DELETE FROM order_items WHERE id = ?", orderItemId);
-    } else {
-        await db.run("UPDATE order_items SET quantity = ? WHERE id = ?", newQuantity, orderItemId);
+        if (newQuantity < 1) {
+            await db.run("DELETE FROM order_items WHERE id = ?", orderItemId);
+        } else {
+            await db.run("UPDATE order_items SET quantity = ? WHERE id = ?", newQuantity, orderItemId);
+        }
+        
+        await recalculateOrderTotals(db, item.order_id);
+        
+        const fullOrder = await getOrderFromDb(db, item.order_id);
+        if (!fullOrder) throw new Error("No se pudo recuperar la orden actualizada.");
+        
+        await db.run('COMMIT');
+        return { success: true, data: fullOrder };
+
+    } catch (error: any) {
+        await db.run('ROLLBACK');
+        console.error("Failed to update item quantity:", error);
+        return { success: false, error: error.message || "No se pudo actualizar la cantidad del producto." };
     }
-    
-    await recalculateOrderTotals(db, item.order_id);
-    const fullOrder = await getOrderFromDb(db, item.order_id);
-    if (!fullOrder) throw new Error("Could not retrieve updated order.");
-    return fullOrder;
 }
 
-export async function removeItemFromOrder(orderItemId: number): Promise<Order> {
+export async function removeItemFromOrder(orderItemId: number): Promise<{ success: boolean; data?: Order; error?: string }> {
     return updateOrderItemQuantity(orderItemId, 0);
 }
 
@@ -315,17 +326,27 @@ export async function finalizeOrder(orderId: number): Promise<{ success: boolean
   }
 }
 
-export async function applyDiscountAction(orderId: number, percentage: number): Promise<Order> {
+export async function applyDiscountAction(orderId: number, percentage: number): Promise<{ success: boolean; data?: Order; error?: string }> {
     if (percentage < 0 || percentage > 100) {
-        throw new Error("Discount percentage must be between 0 and 100.");
+        return { success: false, error: "El porcentaje de descuento debe estar entre 0 y 100." };
     }
-    const db = await getDbConnection();
-    await db.run('UPDATE orders SET discount_percentage = ? WHERE id = ?', percentage, orderId);
-    await recalculateOrderTotals(db, orderId);
     
-    const fullOrder = await getOrderFromDb(db, orderId);
-    if (!fullOrder) throw new Error("Could not retrieve updated order.");
-    return fullOrder;
+    const db = await getDbConnection();
+    await db.run('BEGIN TRANSACTION');
+    try {
+        await db.run('UPDATE orders SET discount_percentage = ? WHERE id = ?', percentage, orderId);
+        await recalculateOrderTotals(db, orderId);
+        
+        const fullOrder = await getOrderFromDb(db, orderId);
+        if (!fullOrder) throw new Error("No se pudo recuperar la orden actualizada.");
+        
+        await db.run('COMMIT');
+        return { success: true, data: fullOrder };
+    } catch (error: any) {
+        await db.run('ROLLBACK');
+        console.error("Failed to apply discount:", error);
+        return { success: false, error: error.message || "No se pudo aplicar el descuento." };
+    }
 }
 
 export async function updateTableStatusAction(tableId: number, status: 'available' | 'occupied' | 'reserved'): Promise<{ success: boolean; error?: string }> {
