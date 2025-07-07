@@ -29,6 +29,7 @@ export interface Table {
 export interface User {
   id: string;
   username: string;
+  password?: string; // Added for mock validation, should not be sent to client in a real app
 }
 
 export interface Shift {

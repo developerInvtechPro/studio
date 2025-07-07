@@ -4,6 +4,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import type { User, Shift } from '@/lib/types';
 import Spinner from '@/components/ui/spinner';
+import { validateUser } from '@/lib/users';
 
 interface SessionContextType {
   user: User | null;
@@ -56,12 +57,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async (username: string, password: string) => {
-    // NOTE: In a real app, you would validate against a database.
-    // For this demo, we'll use a hardcoded user.
-    if (username === 'admin' && password === 'password') {
-      const loggedInUser: User = { id: '1', username: 'admin' };
-      setUser(loggedInUser);
-      localStorage.setItem('pos-user', JSON.stringify(loggedInUser));
+    const validatedUser = await validateUser(username, password);
+
+    if (validatedUser) {
+      setUser(validatedUser);
+      localStorage.setItem('pos-user', JSON.stringify(validatedUser));
       return Promise.resolve();
     } else {
       throw new Error('Credenciales inválidas');
