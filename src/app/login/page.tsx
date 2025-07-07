@@ -17,7 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Coffee } from 'lucide-react';
 
 const loginSchema = z.object({
-  email: z.string().email({ message: 'Por favor ingrese un correo válido.' }),
+  username: z.string().min(3, { message: 'El nombre de usuario debe tener al menos 3 caracteres.' }),
   password: z.string().min(6, { message: 'La contraseña debe tener al menos 6 caracteres.' }),
 });
 
@@ -32,7 +32,7 @@ export default function LoginPage() {
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      email: '',
+      username: '',
       password: '',
     },
   });
@@ -40,7 +40,7 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginFormValues) => {
     setLoading(true);
     try {
-      await login(data.email, data.password);
+      await login(data.username, data.password);
       toast({
         title: '¡Bienvenido!',
         description: 'Has iniciado sesión correctamente.',
@@ -73,12 +73,12 @@ export default function LoginPage() {
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <FormField
                 control={form.control}
-                name="email"
+                name="username"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Correo Electrónico</FormLabel>
+                    <FormLabel>Nombre de Usuario</FormLabel>
                     <FormControl>
-                      <Input placeholder="usuario@cafecentral.com" {...field} />
+                      <Input placeholder="usuario" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

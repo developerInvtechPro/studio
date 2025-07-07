@@ -2,9 +2,6 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { useRouter } from 'next/navigation';
-import { onAuthStateChanged, signInWithEmailAndPassword, signOut, User as FirebaseUser } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
 import type { User, Shift } from '@/lib/types';
 import Spinner from '@/components/ui/spinner';
 
@@ -12,7 +9,7 @@ interface SessionContextType {
   user: User | null;
   shift: Shift;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   startShift: (startingCash: number) => void;
   endShift: () => void;
@@ -32,9 +29,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      setUser(firebaseUser);
-      if (firebaseUser) {
+    try {
+      const savedUser = localStorage.getItem('pos-user');
+      if (savedUser) {
+        const parsedUser: User = JSON.parse(savedUser);
+        setUser(parsedUser);
+
         // User is logged in, check for active shift in localStorage
         const savedShift = localStorage.getItem('pos-shift');
         if (savedShift) {
@@ -43,23 +43,36 @@ export function SessionProvider({ children }: { children: ReactNode }) {
             setShift(parsedShift);
           }
         }
-      } else {
-        // User logged out, clear shift
-        setShift(initialShiftState);
-        localStorage.removeItem('pos-shift');
       }
+    } catch (error) {
+      // If parsing fails, reset state
+      setUser(null);
+      setShift(initialShiftState);
+      localStorage.removeItem('pos-user');
+      localStorage.removeItem('pos-shift');
+    } finally {
       setLoading(false);
-    });
-
-    return () => unsubscribe();
+    }
   }, []);
 
-  const login = async (email: string, password: string) => {
-    await signInWithEmailAndPassword(auth, email, password);
+  const login = async (username: string, password: string) => {
+    // NOTE: In a real app, you would validate against a database.
+    // For this demo, we'll use a hardcoded user.
+    if (username === 'admin' && password === 'password') {
+      const loggedInUser: User = { id: '1', username: 'admin' };
+      setUser(loggedInUser);
+      localStorage.setItem('pos-user', JSON.stringify(loggedInUser));
+      return Promise.resolve();
+    } else {
+      throw new Error('Credenciales inválidas');
+    }
   };
 
   const logout = async () => {
-    await signOut(auth);
+    setUser(null);
+    setShift(initialShiftState);
+    localStorage.removeItem('pos-user');
+    localStorage.removeItem('pos-shift');
   };
 
   const startShift = (startingCash: number) => {

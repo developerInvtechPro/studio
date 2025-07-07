@@ -1,4 +1,3 @@
-import type { User as FirebaseUser } from 'firebase/auth';
 
 export interface Product {
   id: number;
@@ -27,7 +26,10 @@ export interface Table {
   status: 'available' | 'occupied' | 'reserved';
 }
 
-export type User = FirebaseUser;
+export interface User {
+  id: string;
+  username: string;
+}
 
 export interface Shift {
   isActive: boolean;

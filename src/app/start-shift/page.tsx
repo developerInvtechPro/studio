@@ -64,7 +64,7 @@ function StartShiftPage() {
           </div>
           <CardTitle className="text-2xl font-headline">Iniciar Turno</CardTitle>
           <CardDescription>
-            Bienvenido, {user?.email}. Ingrese el fondo de caja para empezar.
+            Bienvenido, {user?.username}. Ingrese el fondo de caja para empezar.
           </CardDescription>
         </CardHeader>
         <CardContent>

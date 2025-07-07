@@ -89,7 +89,7 @@ export default function PosLayout() {
         </aside>
       </div>
       <footer className="h-8 px-4 bg-blue-700 text-white flex justify-between items-center text-xs z-10">
-            <span>Usuario: {user?.email || 'N/A'}</span>
+            <span>Usuario: {user?.username || 'N/A'}</span>
             <span>{time}</span>
       </footer>
     </div>
