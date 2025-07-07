@@ -16,7 +16,7 @@ interface ActionPanelProps {
     tables: Table[];
     loading: boolean;
     selectedTable: Table | null;
-    onSelectTable: (table: Table) => void;
+    onSelectTable: (table: Table | null) => void;
 }
 
 export default function ActionPanel({ onClearOrder, tables, loading, selectedTable, onSelectTable }: ActionPanelProps) {
@@ -35,10 +35,18 @@ export default function ActionPanel({ onClearOrder, tables, loading, selectedTab
   };
   
   const handleClearOrder = () => {
+    if (!selectedTable) {
+        toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'No hay una mesa seleccionada para cancelar.',
+        });
+        return;
+    }
     onClearOrder();
     toast({
         title: 'Orden Cancelada',
-        description: 'Los productos han sido removidos de la orden.',
+        description: 'La orden pendiente ha sido removida.',
         variant: 'destructive',
     });
   }
@@ -50,6 +58,15 @@ export default function ActionPanel({ onClearOrder, tables, loading, selectedTab
     { label: 'BUSCAR PRODUCTO', icon: Search },
     { label: 'DESCUENTO', icon: Tag },
   ];
+
+  const handleTableSelection = (table: Table) => {
+    // Allow deselecting a table
+    if (selectedTable?.id === table.id) {
+        onSelectTable(null);
+    } else {
+        onSelectTable(table);
+    }
+  }
 
   return (
     <aside className="w-[220px] bg-sidebar text-sidebar-foreground flex flex-col p-2 gap-2 border-r border-sidebar-border">
@@ -82,10 +99,10 @@ export default function ActionPanel({ onClearOrder, tables, loading, selectedTab
                 key={table.id} 
                 variant={selectedTable?.id === table.id ? 'secondary' : 'ghost'} 
                 className={cn("aspect-square h-auto hover:bg-sidebar-accent border border-sidebar-border", {
-                    "opacity-60": table.status === 'occupied'
+                    "opacity-60 ring-2 ring-destructive": table.status === 'occupied' && selectedTable?.id !== table.id,
+                    "bg-secondary text-secondary-foreground": selectedTable?.id === table.id,
                 })}
-                onClick={() => onSelectTable(table)}
-                disabled={table.status === 'occupied'}
+                onClick={() => handleTableSelection(table)}
               >
                 {table.name}
               </Button>

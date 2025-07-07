@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import type { OrderItem, Product, Table } from '@/lib/types';
+import type { Order, Product, Table } from '@/lib/types';
 import OrderSummary from './OrderSummary';
 import ProductGrid from './ProductGrid';
 import { useToast } from '@/hooks/use-toast';
@@ -10,10 +10,18 @@ import ActionPanel from './ActionPanel';
 import { Button } from '@/components/ui/button';
 import { Home } from 'lucide-react';
 import { useSession } from '@/context/SessionContext';
-import { getTablesAction } from '@/app/actions';
+import { 
+    getTablesAction,
+    getOpenOrderForTable,
+    addItemToOrder,
+    updateOrderItemQuantity,
+    removeItemFromOrder,
+    cancelOrder,
+} from '@/app/actions';
 
 export default function PosLayout() {
-  const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
+  const [activeOrder, setActiveOrder] = useState<Order | null>(null);
+  const [loadingOrder, setLoadingOrder] = useState<boolean>(false);
   const [tables, setTables] = useState<Table[]>([]);
   const [loadingTables, setLoadingTables] = useState(true);
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);
@@ -39,52 +47,101 @@ export default function PosLayout() {
     fetchTables();
   }, [fetchTables]);
 
-
   useEffect(() => {
     const updateTime = () => setTime(new Date().toLocaleString('es-HN'));
     updateTime();
     const timer = setInterval(updateTime, 1000);
     return () => clearInterval(timer);
   }, []);
+  
+  useEffect(() => {
+    if (selectedTable) {
+        setLoadingOrder(true);
+        getOpenOrderForTable(selectedTable.id)
+            .then(order => {
+                setActiveOrder(order);
+            })
+            .catch(() => {
+                toast({ variant: 'destructive', title: 'Error', description: 'No se pudo cargar la orden para esta mesa.'})
+            })
+            .finally(() => {
+                setLoadingOrder(false);
+            });
+    } else {
+        setActiveOrder(null);
+    }
+  }, [selectedTable, toast]);
 
-  const addProductToOrder = (product: Product) => {
-    setOrderItems(prevItems => {
-      const existingItem = prevItems.find(item => item.product.id === product.id);
-      if (existingItem) {
-        return prevItems.map(item =>
-          item.product.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
-        );
-      }
-      return [...prevItems, { id: Date.now(), product, quantity: 1 }];
-    });
+
+  const addProductToOrder = async (product: Product) => {
+    if (!selectedTable || !shift) {
+        toast({ variant: 'destructive', title: 'Acción inválida', description: 'Por favor, seleccione una mesa antes de agregar productos.' });
+        return;
+    }
+
+    setLoadingOrder(true);
+    try {
+        const updatedOrder = await addItemToOrder(selectedTable.id, shift.id, product.id);
+        setActiveOrder(updatedOrder);
+    } catch (error) {
+        console.error(error);
+        toast({ variant: 'destructive', title: 'Error', description: 'No se pudo agregar el producto a la orden.' });
+    } finally {
+        setLoadingOrder(false);
+    }
   };
 
-  const updateItemQuantity = (productId: number, newQuantity: number) => {
-    if (newQuantity <= 0) {
-      removeItemFromOrder(productId);
-    } else {
-      setOrderItems(prevItems =>
-        prevItems.map(item =>
-          item.product.id === productId ? { ...item, quantity: newQuantity } : item
-        )
-      );
+  const handleUpdateQuantity = async (orderItemId: number, newQuantity: number) => {
+    setLoadingOrder(true);
+    try {
+        const updatedOrder = await updateOrderItemQuantity(orderItemId, newQuantity);
+        setActiveOrder(updatedOrder);
+    } catch (error) {
+        console.error(error);
+        toast({ variant: 'destructive', title: 'Error', description: 'No se pudo actualizar la cantidad.' });
+    } finally {
+        setLoadingOrder(false);
     }
   };
   
-  const removeItemFromOrder = (productId: number) => {
-    setOrderItems(prevItems => prevItems.filter(item => item.product.id !== productId));
+  const handleRemoveItem = async (orderItemId: number) => {
+    setLoadingOrder(true);
+    try {
+        const updatedOrder = await removeItemFromOrder(orderItemId);
+        setActiveOrder(updatedOrder);
+    } catch (error) {
+        console.error(error);
+        toast({ variant: 'destructive', title: 'Error', description: 'No se pudo remover el producto.' });
+    } finally {
+        setLoadingOrder(false);
+    }
   };
 
-  const clearOrder = useCallback(() => {
-    setOrderItems([]);
-    setSelectedTable(null);
-  }, []);
+  const handleClearOrder = useCallback(async () => {
+    if (activeOrder) {
+      setLoadingOrder(true);
+      try {
+        await cancelOrder(activeOrder.id);
+        setActiveOrder(null);
+        fetchTables(); // Refresh tables to update status
+      } catch (error) {
+        toast({ variant: 'destructive', title: 'Error', description: 'No se pudo cancelar la orden.' });
+      } finally {
+        setLoadingOrder(false);
+      }
+    }
+  }, [activeOrder, fetchTables, toast]);
+  
+  const handleOrderFinalized = useCallback(() => {
+    setActiveOrder(null);
+    fetchTables();
+  }, [fetchTables])
 
   return (
     <div className="h-screen w-screen flex flex-col font-sans text-sm">
       <div className="flex flex-1 overflow-hidden">
         <ActionPanel 
-            onClearOrder={clearOrder}
+            onClearOrder={handleClearOrder}
             tables={tables}
             loading={loadingTables}
             selectedTable={selectedTable}
@@ -99,13 +156,13 @@ export default function PosLayout() {
                 <Button variant="outline">CLIENTE LEAL</Button>
             </div>
             <OrderSummary 
-                orderItems={orderItems} 
-                onUpdateQuantity={updateItemQuantity} 
-                onRemoveItem={removeItemFromOrder} 
-                onClearOrder={clearOrder}
-                refetchTables={fetchTables}
+                order={activeOrder}
+                isLoading={loadingOrder}
+                onUpdateQuantity={handleUpdateQuantity} 
+                onRemoveItem={handleRemoveItem} 
                 shift={shift}
                 selectedTable={selectedTable}
+                onOrderFinalized={handleOrderFinalized}
             />
         </main>
 

@@ -3,10 +3,74 @@
 
 import type { SmartUpsellInput } from '@/ai/flows/smart-upsell';
 import type { BudgetTrackingInput } from '@/ai/flows/ai-powered-budget-and-profitability-tracking';
-import type { User, Category, Product, Table, Shift, OrderItem } from '@/lib/types';
+import type { User, Category, Product, Table, Shift, Order, OrderItem } from '@/lib/types';
 import { getDbConnection } from '@/lib/db';
 import { getSmartUpsellRecommendations } from '@/ai/flows/smart-upsell';
 import { aiPoweredBudgetAndProfitabilityTracking } from '@/ai/flows/ai-powered-budget-and-profitability-tracking';
+import type { Database } from 'sqlite';
+
+const TAX_RATE = 0.15; // ISV Honduras
+
+// #region Helper Functions
+
+async function getOrderFromDb(db: Database, orderId: number): Promise<Order | null> {
+    const orderHeader = await db.get<Omit<Order, 'items'>>('SELECT * FROM orders WHERE id = ?', orderId);
+    if (!orderHeader) return null;
+
+    const orderItemsResult = await db.all<any[]>(
+        `SELECT
+            oi.id,
+            oi.quantity,
+            oi.price_at_time,
+            p.id as productId,
+            p.name,
+            p.price,
+            p.category_id as categoryId,
+            p.image_url as imageUrl,
+            p.image_hint as imageHint
+        FROM order_items oi
+        JOIN products p ON oi.product_id = p.id
+        WHERE oi.order_id = ?`,
+        orderId
+    );
+
+    const items: OrderItem[] = orderItemsResult.map(item => ({
+        id: item.id,
+        quantity: item.quantity,
+        price_at_time: item.price_at_time,
+        product: {
+            id: item.productId,
+            name: item.name,
+            price: item.price,
+            categoryId: item.categoryId,
+            imageUrl: item.imageUrl,
+            imageHint: item.imageHint,
+        }
+    }));
+
+    return { ...orderHeader, items };
+}
+
+
+async function recalculateOrderTotals(db: Database, orderId: number): Promise<void> {
+  const result = await db.get<{ subtotal: number }>(
+    'SELECT SUM(price_at_time * quantity) as subtotal FROM order_items WHERE order_id = ?',
+    orderId
+  );
+  const subtotal = result?.subtotal || 0;
+  const tax = subtotal * TAX_RATE;
+  const total = subtotal + tax;
+
+  await db.run(
+    'UPDATE orders SET subtotal = ?, tax_amount = ?, total_amount = ? WHERE id = ?',
+    subtotal,
+    tax,
+    total,
+    orderId
+  );
+}
+
+// #endregion
 
 export async function getUpsellAction(input: SmartUpsellInput) {
   try {
@@ -103,49 +167,119 @@ export async function endShiftAction(shiftId: number): Promise<void> {
     );
 }
 
-export interface CreateOrderInput {
-    shiftId: number;
-    tableId: number | null;
-    items: OrderItem[];
-    subtotal: number;
-    tax: number;
-    total: number;
-    customerName: string;
+export async function getOpenOrderForTable(tableId: number): Promise<Order | null> {
+    const db = await getDbConnection();
+    const openOrderHeader = await db.get<Omit<Order, 'items'>>(
+        "SELECT * FROM orders WHERE table_id = ? AND status = 'pending'",
+        tableId
+    );
+
+    if (!openOrderHeader) {
+        return null;
+    }
+
+    return getOrderFromDb(db, openOrderHeader.id);
 }
 
-export async function createOrderAction(input: CreateOrderInput): Promise<{ success: boolean; orderId?: number; error?: string }> {
+export async function addItemToOrder(tableId: number, shiftId: number, productId: number): Promise<Order> {
+    const db = await getDbConnection();
+    await db.run('BEGIN TRANSACTION');
+
+    try {
+        let order = await db.get<Order>("SELECT * FROM orders WHERE table_id = ? AND status = 'pending'", tableId);
+        
+        if (!order) {
+            const orderResult = await db.run(
+                `INSERT INTO orders (shift_id, table_id, customer_name, subtotal, tax_amount, total_amount, status, created_at)
+                 VALUES (?, ?, ?, 0, 0, 0, 'pending', ?)`,
+                shiftId, tableId, `Mesa ${tableId}`, new Date().toISOString()
+            );
+            const orderId = orderResult.lastID!;
+            order = (await db.get<Order>('SELECT * FROM orders WHERE id = ?', orderId))!;
+            await db.run("UPDATE tables SET status = 'occupied' WHERE id = ?", tableId);
+        }
+
+        const existingItem = await db.get("SELECT * FROM order_items WHERE order_id = ? AND product_id = ?", order.id, productId);
+        const product = await db.get<Product>("SELECT price FROM products WHERE id = ?", productId);
+
+        if (existingItem) {
+            await db.run("UPDATE order_items SET quantity = quantity + 1 WHERE id = ?", existingItem.id);
+        } else {
+            await db.run(
+                "INSERT INTO order_items (order_id, product_id, quantity, price_at_time) VALUES (?, ?, 1, ?)",
+                order.id, productId, product!.price
+            );
+        }
+
+        await recalculateOrderTotals(db, order.id);
+        await db.run('COMMIT');
+
+        const fullOrder = await getOrderFromDb(db, order.id);
+        if (!fullOrder) throw new Error("Could not retrieve updated order.");
+        return fullOrder;
+
+    } catch (error) {
+        await db.run('ROLLBACK');
+        console.error("Failed to add item to order:", error);
+        throw new Error("Could not add item to order.");
+    }
+}
+
+
+export async function updateOrderItemQuantity(orderItemId: number, newQuantity: number): Promise<Order> {
+    const db = await getDbConnection();
+    const item = await db.get<{ order_id: number }>("SELECT order_id FROM order_items WHERE id = ?", orderItemId);
+    if (!item) throw new Error("Item not found");
+
+    if (newQuantity < 1) {
+        await db.run("DELETE FROM order_items WHERE id = ?", orderItemId);
+    } else {
+        await db.run("UPDATE order_items SET quantity = ? WHERE id = ?", newQuantity, orderItemId);
+    }
+    
+    await recalculateOrderTotals(db, item.order_id);
+    const fullOrder = await getOrderFromDb(db, item.order_id);
+    if (!fullOrder) throw new Error("Could not retrieve updated order.");
+    return fullOrder;
+}
+
+export async function removeItemFromOrder(orderItemId: number): Promise<Order> {
+    return updateOrderItemQuantity(orderItemId, 0);
+}
+
+
+export async function cancelOrder(orderId: number): Promise<void> {
+    const db = await getDbConnection();
+    await db.run('BEGIN TRANSACTION');
+    try {
+        const order = await db.get("SELECT table_id FROM orders WHERE id = ?", orderId);
+        if (order && order.table_id) {
+            await db.run("UPDATE tables SET status = 'available' WHERE id = ?", order.table_id);
+        }
+        await db.run("DELETE FROM order_items WHERE order_id = ?", orderId);
+        await db.run("DELETE FROM orders WHERE id = ?", orderId);
+        await db.run('COMMIT');
+    } catch (error) {
+        await db.run('ROLLBACK');
+        console.error("Failed to cancel order:", error);
+        throw new Error("Could not cancel order.");
+    }
+}
+
+
+export async function finalizeOrder(orderId: number): Promise<{ success: boolean; orderId?: number; error?: string }> {
   const db = await getDbConnection();
   try {
     await db.run('BEGIN TRANSACTION');
 
-    const orderResult = await db.run(
-        `INSERT INTO orders (shift_id, table_id, customer_name, subtotal, tax_amount, total_amount, status, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, 'completed', ?)`,
-        input.shiftId,
-        input.tableId,
-        input.customerName,
-        input.subtotal,
-        input.tax,
-        input.total,
-        new Date().toISOString()
-    );
+    const order = await db.get("SELECT table_id FROM orders WHERE id = ?", orderId);
 
-    const orderId = orderResult.lastID;
-    if (!orderId) {
-        throw new Error("Failed to create order.");
-    }
-    
-    const itemStmt = await db.prepare(
-        'INSERT INTO order_items (order_id, product_id, quantity, price_at_time) VALUES (?, ?, ?, ?)'
-    );
+    // Mark order as completed
+    await db.run("UPDATE orders SET status = 'completed' WHERE id = ?", orderId);
 
-    for (const item of input.items) {
-        await itemStmt.run(orderId, item.product.id, item.quantity, item.product.price);
-    }
-    await itemStmt.finalize();
-
-    if (input.tableId) {
-        await db.run("UPDATE tables SET status = 'occupied' WHERE id = ?", input.tableId);
+    // Free up the table
+    if (order && order.table_id) {
+        await db.run("UPDATE tables SET status = 'available' WHERE id = ?", order.table_id);
     }
 
     await db.run('COMMIT');
@@ -153,7 +287,7 @@ export async function createOrderAction(input: CreateOrderInput): Promise<{ succ
     return { success: true, orderId: orderId };
   } catch (error: any) {
     await db.run('ROLLBACK');
-    console.error('Failed to create order:', error);
-    return { success: false, error: 'No se pudo crear la orden.' };
+    console.error('Failed to finalize order:', error);
+    return { success: false, error: 'No se pudo finalizar la orden.' };
   }
 }

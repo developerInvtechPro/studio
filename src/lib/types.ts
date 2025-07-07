@@ -15,9 +15,10 @@ export interface Category {
 }
 
 export interface OrderItem {
-  id: number;
+  id: number; // This is the order_items.id
   product: Product;
   quantity: number;
+  price_at_time: number;
 }
 
 export interface Table {
@@ -52,12 +53,5 @@ export interface Order {
     total_amount: number;
     status: 'pending' | 'completed' | 'cancelled';
     created_at: string;
-}
-
-export interface OrderItemDetail {
-    id: number;
-    order_id: number;
-    product_id: number;
-    quantity: number;
-    price_at_time: number;
+    items: OrderItem[];
 }

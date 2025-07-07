@@ -4,24 +4,24 @@
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { getUpsellAction } from '@/app/actions';
-import type { OrderItem } from '@/lib/types';
+import type { Order } from '@/lib/types';
 import type { SmartUpsellOutput } from '@/ai/flows/smart-upsell';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Lightbulb, Sparkles } from 'lucide-react';
 
 interface SmartUpsellProps {
-  orderItems: OrderItem[];
+  order: Order | null;
 }
 
-export default function SmartUpsell({ orderItems }: SmartUpsellProps) {
+export default function SmartUpsell({ order }: SmartUpsellProps) {
   const [recommendations, setRecommendations] = useState<SmartUpsellOutput['recommendations']>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (orderItems.length > 0) {
+    if (order && order.items.length > 0) {
       setLoading(true);
       const orderData = {
-        orderItems: orderItems.map(item => ({
+        orderItems: order.items.map(item => ({
           name: item.product.name,
           category: '', // Category not strictly needed by prompt, can be omitted
           price: item.product.price,
@@ -37,7 +37,7 @@ export default function SmartUpsell({ orderItems }: SmartUpsellProps) {
     } else {
       setRecommendations([]);
     }
-  }, [orderItems]);
+  }, [order]);
 
   return (
     <Card className="h-full">
