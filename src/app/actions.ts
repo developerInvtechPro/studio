@@ -53,19 +53,25 @@ async function getOrderFromDb(db: Database, orderId: number): Promise<Order | nu
 
 
 async function recalculateOrderTotals(db: Database, orderId: number): Promise<void> {
+  const order = await db.get<{ discount_percentage: number }>("SELECT discount_percentage FROM orders WHERE id = ?", orderId);
+  const discountPercentage = order?.discount_percentage || 0;
+
   const result = await db.get<{ subtotal: number }>(
     'SELECT SUM(price_at_time * quantity) as subtotal FROM order_items WHERE order_id = ?',
     orderId
   );
   const subtotal = result?.subtotal || 0;
-  const tax = subtotal * TAX_RATE;
-  const total = subtotal + tax;
+  const discountAmount = subtotal * (discountPercentage / 100);
+  const taxableAmount = subtotal - discountAmount;
+  const tax = taxableAmount * TAX_RATE;
+  const total = taxableAmount + tax;
 
   await db.run(
-    'UPDATE orders SET subtotal = ?, tax_amount = ?, total_amount = ? WHERE id = ?',
+    'UPDATE orders SET subtotal = ?, tax_amount = ?, total_amount = ?, discount_amount = ? WHERE id = ?',
     subtotal,
     tax,
     total,
+    discountAmount,
     orderId
   );
 }
@@ -122,6 +128,17 @@ export async function getProductsByCategoryAction(categoryId: number): Promise<P
         categoryId
     );
 }
+
+export async function searchProductsAction(query: string): Promise<Product[]> {
+    const db = await getDbConnection();
+    if (!query) return [];
+    // Using LOWER() for case-insensitive search
+    return db.all<Product[]>(
+        "SELECT id, name, price, category_id as categoryId, image_url as imageUrl, image_hint as imageHint FROM products WHERE LOWER(name) LIKE LOWER(?)",
+        `%${query}%`
+    );
+}
+
 
 export async function getTablesAction(): Promise<Table[]> {
     const db = await getDbConnection();
@@ -190,8 +207,8 @@ export async function addItemToOrder(tableId: number, shiftId: number, productId
         
         if (!order) {
             const orderResult = await db.run(
-                `INSERT INTO orders (shift_id, table_id, customer_name, subtotal, tax_amount, total_amount, status, created_at)
-                 VALUES (?, ?, ?, 0, 0, 0, 'pending', ?)`,
+                `INSERT INTO orders (shift_id, table_id, customer_name, subtotal, tax_amount, total_amount, status, created_at, discount_percentage, discount_amount)
+                 VALUES (?, ?, ?, 0, 0, 0, 'pending', ?, 0, 0)`,
                 shiftId, tableId, `Mesa ${tableId}`, new Date().toISOString()
             );
             const orderId = orderResult.lastID!;
@@ -290,6 +307,19 @@ export async function finalizeOrder(orderId: number): Promise<{ success: boolean
     console.error('Failed to finalize order:', error);
     return { success: false, error: 'No se pudo finalizar la orden.' };
   }
+}
+
+export async function applyDiscountAction(orderId: number, percentage: number): Promise<Order> {
+    if (percentage < 0 || percentage > 100) {
+        throw new Error("Discount percentage must be between 0 and 100.");
+    }
+    const db = await getDbConnection();
+    await db.run('UPDATE orders SET discount_percentage = ? WHERE id = ?', percentage, orderId);
+    await recalculateOrderTotals(db, orderId);
+    
+    const fullOrder = await getOrderFromDb(db, orderId);
+    if (!fullOrder) throw new Error("Could not retrieve updated order.");
+    return fullOrder;
 }
 
 export async function updateTableStatusAction(tableId: number, status: 'available' | 'occupied' | 'reserved'): Promise<{ success: boolean; error?: string }> {

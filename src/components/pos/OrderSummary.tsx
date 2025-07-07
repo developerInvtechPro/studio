@@ -134,8 +134,14 @@ export default function OrderSummary({
               <span>Sub-Total:</span>
               <span>L {order.subtotal.toFixed(2)}</span>
             </div>
+            {order.discount_amount > 0 && (
+              <div className="flex justify-between text-destructive">
+                <span>Descuento ({order.discount_percentage}%):</span>
+                <span>-L {order.discount_amount.toFixed(2)}</span>
+              </div>
+            )}
             <div className="flex justify-between">
-              <span>Impuesto ({(order.tax_amount / (order.subtotal || 1) * 100).toFixed(0)}%):</span>
+              <span>Impuesto (15%):</span>
               <span>L {order.tax_amount.toFixed(2)}</span>
             </div>
             <div className="flex justify-between font-bold text-lg pt-2 border-t mt-2">

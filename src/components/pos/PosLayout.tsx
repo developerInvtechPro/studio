@@ -11,6 +11,9 @@ import { Button } from '@/components/ui/button';
 import { Home, Move } from 'lucide-react';
 import { useSession } from '@/context/SessionContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import DiscountDialog from './DiscountDialog';
+import SearchProductDialog from './SearchProductDialog';
+import RemoveItemDialog from './RemoveItemDialog';
 import { 
     getTablesAction,
     getOpenOrderForTable,
@@ -19,7 +22,8 @@ import {
     removeItemFromOrder,
     cancelOrder,
     updateTableStatusAction,
-    transferOrderAction
+    transferOrderAction,
+    applyDiscountAction,
 } from '@/app/actions';
 
 export default function PosLayout() {
@@ -31,6 +35,11 @@ export default function PosLayout() {
   const [isReserveModalOpen, setReserveModalOpen] = useState(false);
   const [isTransferModalOpen, setTransferModalOpen] = useState(false);
   const [transferTargetTable, setTransferTargetTable] = useState<Table | null>(null);
+  
+  const [isDiscountDialogOpen, setDiscountDialogOpen] = useState(false);
+  const [isSearchProductDialogOpen, setSearchProductDialogOpen] = useState(false);
+  const [isRemoveItemDialogOpen, setRemoveItemDialogOpen] = useState(false);
+
 
   const { toast } = useToast();
   const [time, setTime] = useState('');
@@ -122,6 +131,7 @@ export default function PosLayout() {
     try {
         const updatedOrder = await removeItemFromOrder(orderItemId);
         setActiveOrder(updatedOrder);
+        toast({title: "Producto removido", description: "El producto ha sido removido de la orden."});
     } catch (error) {
         console.error(error);
         toast({ variant: 'destructive', title: 'Error', description: 'No se pudo remover el producto.' });
@@ -187,6 +197,21 @@ export default function PosLayout() {
     }
   };
 
+  const handleApplyDiscount = async (percentage: number) => {
+    if (!activeOrder) return;
+    setLoadingOrder(true);
+    try {
+        const updatedOrder = await applyDiscountAction(activeOrder.id, percentage);
+        setActiveOrder(updatedOrder);
+        setDiscountDialogOpen(false);
+        toast({ title: 'Descuento aplicado', description: `Se aplicó un ${percentage}% de descuento.` });
+    } catch (error: any) {
+        toast({ variant: 'destructive', title: 'Error', description: error.message || 'No se pudo aplicar el descuento.' });
+    } finally {
+        setLoadingOrder(false);
+    }
+  };
+
 
   return (
     <div className="h-screen w-screen flex flex-col font-sans text-sm">
@@ -200,6 +225,9 @@ export default function PosLayout() {
             onOpenReserveDialog={() => setReserveModalOpen(true)}
             onOpenTransferDialog={() => setTransferModalOpen(true)}
             hasOpenOrder={!!activeOrder && activeOrder.items.length > 0}
+            onOpenDiscountDialog={() => setDiscountDialogOpen(true)}
+            onOpenSearchProductDialog={() => setSearchProductDialogOpen(true)}
+            onOpenRemoveItemDialog={() => setRemoveItemDialogOpen(true)}
         />
         
         <main className="flex-1 flex flex-col p-2 md:p-4 gap-4 bg-muted/30">
@@ -286,6 +314,31 @@ export default function PosLayout() {
                 </DialogFooter>
             </DialogContent>
         </Dialog>
+
+        {/* Action Dialogs */}
+        <DiscountDialog 
+            isOpen={isDiscountDialogOpen} 
+            onOpenChange={setDiscountDialogOpen}
+            onSubmit={handleApplyDiscount}
+            currentDiscount={activeOrder?.discount_percentage || 0}
+        />
+        <SearchProductDialog
+            isOpen={isSearchProductDialogOpen}
+            onOpenChange={setSearchProductDialogOpen}
+            onProductSelect={(product) => {
+                addProductToOrder(product);
+                setSearchProductDialogOpen(false);
+            }}
+        />
+        <RemoveItemDialog
+            isOpen={isRemoveItemDialogOpen}
+            onOpenChange={setRemoveItemDialogOpen}
+            order={activeOrder}
+            onRemoveItem={(itemId) => {
+                handleRemoveItem(itemId);
+                setRemoveItemDialogOpen(false);
+            }}
+        />
 
     </div>
   );

@@ -19,6 +19,9 @@ interface ActionPanelProps {
     onSelectTable: (table: Table | null) => void;
     onOpenReserveDialog: () => void;
     onOpenTransferDialog: () => void;
+    onOpenRemoveItemDialog: () => void;
+    onOpenSearchProductDialog: () => void;
+    onOpenDiscountDialog: () => void;
     hasOpenOrder: boolean;
 }
 
@@ -30,6 +33,9 @@ export default function ActionPanel({
     onSelectTable,
     onOpenReserveDialog,
     onOpenTransferDialog,
+    onOpenRemoveItemDialog,
+    onOpenSearchProductDialog,
+    onOpenDiscountDialog,
     hasOpenOrder,
 }: ActionPanelProps) {
   const { logout, endShift } = useSession();
@@ -59,20 +65,27 @@ export default function ActionPanel({
     toast({
         title: 'Orden Cancelada',
         description: 'La orden pendiente ha sido removida.',
-        variant: 'destructive',
+        variant: 'default',
+        className: 'bg-yellow-500 text-white'
     });
   }
 
+  const handleNotImplemented = () => {
+    toast({
+        title: 'Función no implementada',
+        description: 'Esta función estará disponible próximamente.',
+    });
+  };
+
   const mainActions = [
-    { label: 'SUSPENDER VENTA', icon: PauseCircle },
-    { label: 'ANULAR PRODUCTO', icon: Ban },
-    { label: 'REIMPRIMIR RECIBO', icon: Receipt },
-    { label: 'BUSCAR PRODUCTO', icon: Search },
-    { label: 'DESCUENTO', icon: Tag },
+    { label: 'SUSPENDER VENTA', icon: PauseCircle, onClick: handleNotImplemented, disabled: !hasOpenOrder },
+    { label: 'ANULAR PRODUCTO', icon: Ban, onClick: onOpenRemoveItemDialog, disabled: !hasOpenOrder },
+    { label: 'REIMPRIMIR RECIBO', icon: Receipt, onClick: handleNotImplemented, disabled: false },
+    { label: 'BUSCAR PRODUCTO', icon: Search, onClick: onOpenSearchProductDialog, disabled: false },
+    { label: 'DESCUENTO', icon: Tag, onClick: onOpenDiscountDialog, disabled: !hasOpenOrder },
   ];
 
   const handleTableSelection = (table: Table) => {
-    // Allow deselecting a table
     if (selectedTable?.id === table.id) {
         onSelectTable(null);
     } else {
@@ -83,18 +96,18 @@ export default function ActionPanel({
   return (
     <aside className="w-[220px] bg-sidebar text-sidebar-foreground flex flex-col p-2 gap-2 border-r border-sidebar-border">
       <div className="flex flex-col gap-2">
-        <Button variant="destructive" onClick={handleClearOrder} className="w-full justify-center h-10 text-xs font-bold">
+        <Button variant="destructive" onClick={handleClearOrder} disabled={!hasOpenOrder} className="w-full justify-center h-10 text-xs font-bold">
             CANCELAR VENTA
         </Button>
         {mainActions.map((action) => (
-          <Button key={action.label} variant="ghost" className="w-full justify-center h-10 text-xs hover:bg-sidebar-accent">
+          <Button key={action.label} variant="ghost" disabled={action.disabled} onClick={action.onClick} className="w-full justify-center h-10 text-xs hover:bg-sidebar-accent">
             {action.label}
           </Button>
         ))}
       </div>
       <div className="flex flex-col gap-2">
-        <Button className="w-full bg-blue-500 hover:bg-blue-600 text-white text-xs h-10">NUEVO DELIVERY</Button>
-        <Button className="w-full bg-primary hover:bg-primary/90 text-primary-foreground text-xs h-10">NUEVO PICKUP</Button>
+        <Button onClick={handleNotImplemented} className="w-full bg-blue-500 hover:bg-blue-600 text-white text-xs h-10">NUEVO DELIVERY</Button>
+        <Button onClick={handleNotImplemented} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground text-xs h-10">NUEVO PICKUP</Button>
       </div>
       <div className="flex flex-col gap-2">
         <Button onClick={onOpenTransferDialog} disabled={!hasOpenOrder} variant="ghost" className="w-full justify-center bg-purple-500 hover:bg-purple-600 text-white text-xs h-10">

@@ -120,6 +120,8 @@ const initializeDb = async () => {
             customer_name TEXT,
             subtotal REAL NOT NULL,
             tax_amount REAL NOT NULL,
+            discount_percentage REAL NOT NULL DEFAULT 0,
+            discount_amount REAL NOT NULL DEFAULT 0,
             total_amount REAL NOT NULL,
             status TEXT NOT NULL,
             created_at TEXT NOT NULL,

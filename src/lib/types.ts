@@ -50,6 +50,8 @@ export interface Order {
     customer_name: string;
     subtotal: number;
     tax_amount: number;
+    discount_percentage: number;
+    discount_amount: number;
     total_amount: number;
     status: 'pending' | 'completed' | 'cancelled';
     created_at: string;
