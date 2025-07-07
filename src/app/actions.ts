@@ -203,7 +203,7 @@ export async function addItemToOrder(tableId: number, shiftId: number, productId
     await db.run('BEGIN TRANSACTION');
 
     try {
-        let order = await db.get<Order>("SELECT * FROM orders WHERE table_id = ? AND status = 'pending'", tableId);
+        let order = await db.get<Omit<Order, 'items'>>("SELECT * FROM orders WHERE table_id = ? AND status = 'pending'", tableId);
         
         if (!order) {
             const orderResult = await db.run(
@@ -212,19 +212,25 @@ export async function addItemToOrder(tableId: number, shiftId: number, productId
                 shiftId, tableId, `Mesa ${tableId}`, new Date().toISOString()
             );
             const orderId = orderResult.lastID!;
-            order = (await db.get<Order>('SELECT * FROM orders WHERE id = ?', orderId))!;
+            order = await db.get<Omit<Order, 'items'>>('SELECT * FROM orders WHERE id = ?', orderId);
+            if (!order) {
+              throw new Error("Failed to create and retrieve the new order.");
+            }
             await db.run("UPDATE tables SET status = 'occupied' WHERE id = ?", tableId);
         }
 
         const existingItem = await db.get("SELECT * FROM order_items WHERE order_id = ? AND product_id = ?", order.id, productId);
-        const product = await db.get<Product>("SELECT price FROM products WHERE id = ?", productId);
-
+        
         if (existingItem) {
             await db.run("UPDATE order_items SET quantity = quantity + 1 WHERE id = ?", existingItem.id);
         } else {
+            const product = await db.get<Product>("SELECT price FROM products WHERE id = ?", productId);
+            if (!product) {
+                throw new Error("Product not found");
+            }
             await db.run(
                 "INSERT INTO order_items (order_id, product_id, quantity, price_at_time) VALUES (?, ?, 1, ?)",
-                order.id, productId, product!.price
+                order.id, productId, product.price
             );
         }
 
