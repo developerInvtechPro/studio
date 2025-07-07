@@ -117,132 +117,175 @@ export async function loginAction(credentials: {username: string, password: stri
 }
 
 export async function getCategoriesAction(): Promise<Category[]> {
-    const db = await getDbConnection();
-    return db.all<Category[]>("SELECT id, name, icon_name as iconName FROM categories ORDER BY id");
+    try {
+        const db = await getDbConnection();
+        return db.all<Category[]>("SELECT id, name, icon_name as iconName FROM categories ORDER BY id");
+    } catch (error) {
+        console.error("Failed to get categories:", error);
+        return []; // Return empty array on error
+    }
 }
 
 export async function getProductsByCategoryAction(categoryId: number): Promise<Product[]> {
-    const db = await getDbConnection();
-    return db.all<Product[]>(
-        "SELECT id, name, price, category_id as categoryId, image_url as imageUrl, image_hint as imageHint FROM products WHERE category_id = ?",
-        categoryId
-    );
+    try {
+        const db = await getDbConnection();
+        return db.all<Product[]>(
+            "SELECT id, name, price, category_id as categoryId, image_url as imageUrl, image_hint as imageHint FROM products WHERE category_id = ?",
+            categoryId
+        );
+    } catch (error) {
+        console.error("Failed to get products by category:", error);
+        return [];
+    }
 }
 
 export async function searchProductsAction(query: string): Promise<Product[]> {
-    const db = await getDbConnection();
-    if (!query) return [];
-    // Using LOWER() for case-insensitive search
-    return db.all<Product[]>(
-        "SELECT id, name, price, category_id as categoryId, image_url as imageUrl, image_hint as imageHint FROM products WHERE LOWER(name) LIKE LOWER(?)",
-        `%${query}%`
-    );
+    try {
+        const db = await getDbConnection();
+        if (!query) return [];
+        return db.all<Product[]>(
+            "SELECT id, name, price, category_id as categoryId, image_url as imageUrl, image_hint as imageHint FROM products WHERE LOWER(name) LIKE LOWER(?)",
+            `%${query}%`
+        );
+    } catch (error) {
+        console.error("Failed to search products:", error);
+        return [];
+    }
 }
 
 
 export async function getTablesAction(): Promise<Table[]> {
-    const db = await getDbConnection();
-    return db.all<Table[]>("SELECT id, name, status FROM tables ORDER BY id");
+    try {
+        const db = await getDbConnection();
+        return db.all<Table[]>("SELECT id, name, status FROM tables ORDER BY id");
+    } catch (error) {
+        console.error("Failed to get tables:", error);
+        return [];
+    }
 }
 
 
 export async function getActiveShiftAction(userId: number): Promise<Shift | null> {
-    const db = await getDbConnection();
-    const shift = await db.get<Shift>(
-        "SELECT id, user_id as userId, start_time as startTime, starting_cash as startingCash, is_active as isActive FROM shifts WHERE user_id = ? AND is_active = 1",
-        userId
-    );
-    return shift || null;
+    try {
+        const db = await getDbConnection();
+        const shift = await db.get<Shift>(
+            "SELECT id, user_id as userId, start_time as startTime, starting_cash as startingCash, is_active as isActive FROM shifts WHERE user_id = ? AND is_active = 1",
+            userId
+        );
+        return shift || null;
+    } catch (error) {
+        console.error("Failed to get active shift:", error);
+        return null;
+    }
 }
 
 export async function startShiftAction(userId: number, startingCash: number): Promise<Shift> {
-    const db = await getDbConnection();
-    const now = new Date().toISOString();
-    
-    await db.run("UPDATE shifts SET is_active = 0 WHERE user_id = ? AND is_active = 1", userId);
+    try {
+        const db = await getDbConnection();
+        const now = new Date().toISOString();
+        
+        await db.run("UPDATE shifts SET is_active = 0 WHERE user_id = ? AND is_active = 1", userId);
 
-    const result = await db.run(
-        "INSERT INTO shifts (user_id, start_time, starting_cash, is_active) VALUES (?, ?, ?, 1)",
-        userId, now, startingCash
-    );
+        const result = await db.run(
+            "INSERT INTO shifts (user_id, start_time, starting_cash, is_active) VALUES (?, ?, ?, 1)",
+            userId, now, startingCash
+        );
 
-    const newShift: Shift = {
-        id: result.lastID!,
-        userId,
-        startTime: now,
-        startingCash,
-        isActive: true,
-    };
-    return newShift;
+        const newShift: Shift = {
+            id: result.lastID!,
+            userId,
+            startTime: now,
+            startingCash,
+            isActive: true,
+        };
+        return newShift;
+    } catch (error) {
+        console.error("Failed to start shift:", error);
+        throw new Error("Could not start shift.");
+    }
 }
 
 export async function endShiftAction(shiftId: number): Promise<void> {
-    const db = await getDbConnection();
-    await db.run(
-        "UPDATE shifts SET is_active = 0, end_time = ? WHERE id = ?",
-        new Date().toISOString(), shiftId
-    );
+    try {
+        const db = await getDbConnection();
+        await db.run(
+            "UPDATE shifts SET is_active = 0, end_time = ? WHERE id = ?",
+            new Date().toISOString(), shiftId
+        );
+    } catch (error) {
+        console.error("Failed to end shift:", error);
+        throw new Error("Could not end shift.");
+    }
 }
 
 export async function getOpenOrderForTable(tableId: number): Promise<Order | null> {
-    const db = await getDbConnection();
-    const openOrderHeader = await db.get<Omit<Order, 'items'>>(
-        "SELECT * FROM orders WHERE table_id = ? AND status = 'pending'",
-        tableId
-    );
+    try {
+        const db = await getDbConnection();
+        const openOrderHeader = await db.get<Omit<Order, 'items'>>(
+            "SELECT * FROM orders WHERE table_id = ? AND status = 'pending'",
+            tableId
+        );
 
-    if (!openOrderHeader) {
+        if (!openOrderHeader) {
+            return null;
+        }
+
+        return getOrderFromDb(db, openOrderHeader.id);
+    } catch (error) {
+        console.error("Failed to get open order for table:", error);
         return null;
     }
-
-    return getOrderFromDb(db, openOrderHeader.id);
 }
 
 export async function addItemToOrder(tableId: number, shiftId: number, productId: number): Promise<{ success: boolean; data?: Order; error?: string }> {
-    const db = await getDbConnection();
-    await db.run('BEGIN TRANSACTION');
-
     try {
-        let order = await db.get<Omit<Order, 'items'>>("SELECT * FROM orders WHERE table_id = ? AND status = 'pending'", tableId);
-        
-        if (!order) {
-            const orderResult = await db.run(
-                `INSERT INTO orders (shift_id, table_id, customer_name, subtotal, tax_amount, total_amount, status, created_at, discount_percentage, discount_amount)
-                 VALUES (?, ?, ?, 0, 0, 0, 'pending', ?, 0, 0)`,
-                shiftId, tableId, `Mesa ${tableId}`, new Date().toISOString()
-            );
-            const orderId = orderResult.lastID!;
-            order = await db.get<Omit<Order, 'items'>>('SELECT * FROM orders WHERE id = ?', orderId);
+        const db = await getDbConnection();
+        await db.run('BEGIN TRANSACTION');
+
+        try {
+            let order = await db.get<Omit<Order, 'items'>>("SELECT * FROM orders WHERE table_id = ? AND status = 'pending'", tableId);
+            
             if (!order) {
-              throw new Error("Failed to create and retrieve the new order.");
+                const orderResult = await db.run(
+                    `INSERT INTO orders (shift_id, table_id, customer_name, subtotal, tax_amount, total_amount, status, created_at, discount_percentage, discount_amount)
+                     VALUES (?, ?, ?, 0, 0, 0, 'pending', ?, 0, 0)`,
+                    shiftId, tableId, `Mesa ${tableId}`, new Date().toISOString()
+                );
+                const orderId = orderResult.lastID!;
+                order = await db.get<Omit<Order, 'items'>>('SELECT * FROM orders WHERE id = ?', orderId);
+                if (!order) {
+                  throw new Error("Failed to create and retrieve the new order.");
+                }
+                await db.run("UPDATE tables SET status = 'occupied' WHERE id = ?", tableId);
             }
-            await db.run("UPDATE tables SET status = 'occupied' WHERE id = ?", tableId);
-        }
 
-        const existingItem = await db.get("SELECT * FROM order_items WHERE order_id = ? AND product_id = ?", order.id, productId);
-        
-        if (existingItem) {
-            await db.run("UPDATE order_items SET quantity = quantity + 1 WHERE id = ?", existingItem.id);
-        } else {
-            const product = await db.get<Product>("SELECT price FROM products WHERE id = ?", productId);
-            if (!product) {
-                throw new Error("Product not found");
+            const existingItem = await db.get("SELECT * FROM order_items WHERE order_id = ? AND product_id = ?", order.id, productId);
+            
+            if (existingItem) {
+                await db.run("UPDATE order_items SET quantity = quantity + 1 WHERE id = ?", existingItem.id);
+            } else {
+                const product = await db.get<Product>("SELECT price FROM products WHERE id = ?", productId);
+                if (!product) {
+                    throw new Error("Product not found");
+                }
+                await db.run(
+                    "INSERT INTO order_items (order_id, product_id, quantity, price_at_time) VALUES (?, ?, 1, ?)",
+                    order.id, productId, product.price
+                );
             }
-            await db.run(
-                "INSERT INTO order_items (order_id, product_id, quantity, price_at_time) VALUES (?, ?, 1, ?)",
-                order.id, productId, product.price
-            );
+
+            await recalculateOrderTotals(db, order.id);
+            await db.run('COMMIT');
+
+            const fullOrder = await getOrderFromDb(db, order.id);
+            if (!fullOrder) throw new Error("Could not retrieve updated order.");
+            return { success: true, data: fullOrder };
+
+        } catch (innerError: any) {
+            await db.run('ROLLBACK');
+            throw innerError; // Re-throw to be caught by the outer catch
         }
-
-        await recalculateOrderTotals(db, order.id);
-        await db.run('COMMIT');
-
-        const fullOrder = await getOrderFromDb(db, order.id);
-        if (!fullOrder) throw new Error("Could not retrieve updated order.");
-        return { success: true, data: fullOrder };
-
     } catch (error: any) {
-        await db.run('ROLLBACK');
         console.error("Failed to add item to order:", error);
         return { success: false, error: error.message || "Could not add item to order." };
     }
@@ -250,28 +293,32 @@ export async function addItemToOrder(tableId: number, shiftId: number, productId
 
 
 export async function updateOrderItemQuantity(orderItemId: number, newQuantity: number): Promise<{ success: boolean; data?: Order; error?: string }> {
-    const db = await getDbConnection();
-    await db.run('BEGIN TRANSACTION');
     try {
-        const item = await db.get<{ order_id: number }>("SELECT order_id FROM order_items WHERE id = ?", orderItemId);
-        if (!item) throw new Error("Item no encontrado.");
+        const db = await getDbConnection();
+        await db.run('BEGIN TRANSACTION');
+        try {
+            const item = await db.get<{ order_id: number }>("SELECT order_id FROM order_items WHERE id = ?", orderItemId);
+            if (!item) throw new Error("Item no encontrado.");
 
-        if (newQuantity < 1) {
-            await db.run("DELETE FROM order_items WHERE id = ?", orderItemId);
-        } else {
-            await db.run("UPDATE order_items SET quantity = ? WHERE id = ?", newQuantity, orderItemId);
+            if (newQuantity < 1) {
+                await db.run("DELETE FROM order_items WHERE id = ?", orderItemId);
+            } else {
+                await db.run("UPDATE order_items SET quantity = ? WHERE id = ?", newQuantity, orderItemId);
+            }
+            
+            await recalculateOrderTotals(db, item.order_id);
+            
+            const fullOrder = await getOrderFromDb(db, item.order_id);
+            if (!fullOrder) throw new Error("No se pudo recuperar la orden actualizada.");
+            
+            await db.run('COMMIT');
+            return { success: true, data: fullOrder };
+        } catch (innerError: any) {
+            await db.run('ROLLBACK');
+            throw innerError;
         }
-        
-        await recalculateOrderTotals(db, item.order_id);
-        
-        const fullOrder = await getOrderFromDb(db, item.order_id);
-        if (!fullOrder) throw new Error("No se pudo recuperar la orden actualizada.");
-        
-        await db.run('COMMIT');
-        return { success: true, data: fullOrder };
 
     } catch (error: any) {
-        await db.run('ROLLBACK');
         console.error("Failed to update item quantity:", error);
         return { success: false, error: error.message || "No se pudo actualizar la cantidad del producto." };
     }
@@ -282,76 +329,89 @@ export async function removeItemFromOrder(orderItemId: number): Promise<{ succes
 }
 
 
-export async function cancelOrder(orderId: number): Promise<void> {
-    const db = await getDbConnection();
-    await db.run('BEGIN TRANSACTION');
+export async function cancelOrder(orderId: number): Promise<{ success: boolean; error?: string }> {
     try {
-        const order = await db.get("SELECT table_id FROM orders WHERE id = ?", orderId);
-        if (order && order.table_id) {
-            await db.run("UPDATE tables SET status = 'available' WHERE id = ?", order.table_id);
+        const db = await getDbConnection();
+        await db.run('BEGIN TRANSACTION');
+        try {
+            const order = await db.get("SELECT table_id FROM orders WHERE id = ?", orderId);
+            if (order && order.table_id) {
+                await db.run("UPDATE tables SET status = 'available' WHERE id = ?", order.table_id);
+            }
+            await db.run("DELETE FROM order_items WHERE order_id = ?", orderId);
+            await db.run("DELETE FROM orders WHERE id = ?", orderId);
+            await db.run('COMMIT');
+            return { success: true };
+        } catch (innerError: any) {
+            await db.run('ROLLBACK');
+            throw innerError;
         }
-        await db.run("DELETE FROM order_items WHERE order_id = ?", orderId);
-        await db.run("DELETE FROM orders WHERE id = ?", orderId);
-        await db.run('COMMIT');
     } catch (error) {
-        await db.run('ROLLBACK');
         console.error("Failed to cancel order:", error);
-        throw new Error("Could not cancel order.");
+        return { success: false, error: "Could not cancel order." };
     }
 }
 
 
 export async function finalizeOrder(orderId: number): Promise<{ success: boolean; orderId?: number; error?: string }> {
-  const db = await getDbConnection();
   try {
+    const db = await getDbConnection();
     await db.run('BEGIN TRANSACTION');
 
-    const order = await db.get("SELECT table_id FROM orders WHERE id = ?", orderId);
+    try {
+        const order = await db.get("SELECT table_id FROM orders WHERE id = ?", orderId);
 
-    // Mark order as completed
-    await db.run("UPDATE orders SET status = 'completed' WHERE id = ?", orderId);
+        // Mark order as completed
+        await db.run("UPDATE orders SET status = 'completed' WHERE id = ?", orderId);
 
-    // Free up the table
-    if (order && order.table_id) {
-        await db.run("UPDATE tables SET status = 'available' WHERE id = ?", order.table_id);
+        // Free up the table
+        if (order && order.table_id) {
+            await db.run("UPDATE tables SET status = 'available' WHERE id = ?", order.table_id);
+        }
+
+        await db.run('COMMIT');
+
+        return { success: true, orderId: orderId };
+    } catch (innerError: any) {
+        await db.run('ROLLBACK');
+        throw innerError;
     }
-
-    await db.run('COMMIT');
-
-    return { success: true, orderId: orderId };
   } catch (error: any) {
-    await db.run('ROLLBACK');
     console.error('Failed to finalize order:', error);
     return { success: false, error: 'No se pudo finalizar la orden.' };
   }
 }
 
 export async function applyDiscountAction(orderId: number, percentage: number): Promise<{ success: boolean; data?: Order; error?: string }> {
-    if (percentage < 0 || percentage > 100) {
-        return { success: false, error: "El porcentaje de descuento debe estar entre 0 y 100." };
-    }
-    
-    const db = await getDbConnection();
-    await db.run('BEGIN TRANSACTION');
     try {
-        await db.run('UPDATE orders SET discount_percentage = ? WHERE id = ?', percentage, orderId);
-        await recalculateOrderTotals(db, orderId);
+        if (percentage < 0 || percentage > 100) {
+            return { success: false, error: "El porcentaje de descuento debe estar entre 0 y 100." };
+        }
         
-        const fullOrder = await getOrderFromDb(db, orderId);
-        if (!fullOrder) throw new Error("No se pudo recuperar la orden actualizada.");
-        
-        await db.run('COMMIT');
-        return { success: true, data: fullOrder };
+        const db = await getDbConnection();
+        await db.run('BEGIN TRANSACTION');
+        try {
+            await db.run('UPDATE orders SET discount_percentage = ? WHERE id = ?', percentage, orderId);
+            await recalculateOrderTotals(db, orderId);
+            
+            const fullOrder = await getOrderFromDb(db, orderId);
+            if (!fullOrder) throw new Error("No se pudo recuperar la orden actualizada.");
+            
+            await db.run('COMMIT');
+            return { success: true, data: fullOrder };
+        } catch (innerError: any) {
+            await db.run('ROLLBACK');
+            throw innerError;
+        }
     } catch (error: any) {
-        await db.run('ROLLBACK');
         console.error("Failed to apply discount:", error);
         return { success: false, error: error.message || "No se pudo aplicar el descuento." };
     }
 }
 
 export async function updateTableStatusAction(tableId: number, status: 'available' | 'occupied' | 'reserved'): Promise<{ success: boolean; error?: string }> {
-    const db = await getDbConnection();
     try {
+        const db = await getDbConnection();
         await db.run("UPDATE tables SET status = ? WHERE id = ?", status, tableId);
         return { success: true };
     } catch (error: any) {
@@ -361,23 +421,27 @@ export async function updateTableStatusAction(tableId: number, status: 'availabl
 }
 
 export async function transferOrderAction(orderId: number, oldTableId: number, newTableId: number): Promise<{ success: boolean; error?: string }> {
-  const db = await getDbConnection();
-  await db.run('BEGIN TRANSACTION');
   try {
-    const newTable = await db.get<Table>("SELECT * FROM tables WHERE id = ?", newTableId);
-    if (newTable?.status !== 'available') {
-        await db.run('ROLLBACK');
-        return { success: false, error: "La mesa de destino no está disponible." };
-    }
+    const db = await getDbConnection();
+    await db.run('BEGIN TRANSACTION');
+    try {
+        const newTable = await db.get<Table>("SELECT * FROM tables WHERE id = ?", newTableId);
+        if (newTable?.status !== 'available') {
+            await db.run('ROLLBACK');
+            return { success: false, error: "La mesa de destino no está disponible." };
+        }
 
-    await db.run("UPDATE orders SET table_id = ?, customer_name = ? WHERE id = ?", newTableId, `Mesa ${newTableId}`, orderId);
-    await db.run("UPDATE tables SET status = 'occupied' WHERE id = ?", newTableId);
-    await db.run("UPDATE tables SET status = 'available' WHERE id = ?", oldTableId);
-    
-    await db.run('COMMIT');
-    return { success: true };
+        await db.run("UPDATE orders SET table_id = ?, customer_name = ? WHERE id = ?", newTableId, `Mesa ${newTableId}`, orderId);
+        await db.run("UPDATE tables SET status = 'occupied' WHERE id = ?", newTableId);
+        await db.run("UPDATE tables SET status = 'available' WHERE id = ?", oldTableId);
+        
+        await db.run('COMMIT');
+        return { success: true };
+    } catch (innerError: any) {
+        await db.run('ROLLBACK');
+        throw innerError;
+    }
   } catch (error: any) {
-    await db.run('ROLLBACK');
     console.error("Failed to transfer order:", error);
     return { success: false, error: "No se pudo trasladar la orden." };
   }
