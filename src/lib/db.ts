@@ -112,6 +112,30 @@ const initializeDb = async () => {
             is_active BOOLEAN NOT NULL DEFAULT 0,
             FOREIGN KEY (user_id) REFERENCES users(id)
         );
+
+        CREATE TABLE IF NOT EXISTS orders (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            shift_id INTEGER NOT NULL,
+            table_id INTEGER,
+            customer_name TEXT,
+            subtotal REAL NOT NULL,
+            tax_amount REAL NOT NULL,
+            total_amount REAL NOT NULL,
+            status TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY (shift_id) REFERENCES shifts(id),
+            FOREIGN KEY (table_id) REFERENCES tables(id)
+        );
+
+        CREATE TABLE IF NOT EXISTS order_items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            order_id INTEGER NOT NULL,
+            product_id INTEGER NOT NULL,
+            quantity INTEGER NOT NULL,
+            price_at_time REAL NOT NULL,
+            FOREIGN KEY (order_id) REFERENCES orders(id),
+            FOREIGN KEY (product_id) REFERENCES products(id)
+        );
     `);
     
     // Seed database if empty

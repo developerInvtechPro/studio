@@ -1,8 +1,8 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
-import type { OrderItem, Product } from '@/lib/types';
+import { useState, useEffect, useCallback } from 'react';
+import type { OrderItem, Product, Table } from '@/lib/types';
 import OrderSummary from './OrderSummary';
 import ProductGrid from './ProductGrid';
 import { useToast } from '@/hooks/use-toast';
@@ -10,12 +10,35 @@ import ActionPanel from './ActionPanel';
 import { Button } from '@/components/ui/button';
 import { Home } from 'lucide-react';
 import { useSession } from '@/context/SessionContext';
+import { getTablesAction } from '@/app/actions';
 
 export default function PosLayout() {
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
+  const [tables, setTables] = useState<Table[]>([]);
+  const [loadingTables, setLoadingTables] = useState(true);
+  const [selectedTable, setSelectedTable] = useState<Table | null>(null);
+
   const { toast } = useToast();
   const [time, setTime] = useState('');
-  const { user } = useSession();
+  const { user, shift } = useSession();
+
+  const fetchTables = useCallback(async () => {
+    try {
+        setLoadingTables(true);
+        const tablesData = await getTablesAction();
+        setTables(tablesData);
+    } catch (error) {
+        console.error("Failed to fetch tables", error);
+        toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron cargar las mesas.' });
+    } finally {
+        setLoadingTables(false);
+    }
+  }, [toast]);
+  
+  useEffect(() => {
+    fetchTables();
+  }, [fetchTables]);
+
 
   useEffect(() => {
     const updateTime = () => setTime(new Date().toLocaleString('es-HN'));
@@ -52,19 +75,21 @@ export default function PosLayout() {
     setOrderItems(prevItems => prevItems.filter(item => item.product.id !== productId));
   };
 
-  const clearOrder = () => {
+  const clearOrder = useCallback(() => {
     setOrderItems([]);
-    toast({
-      title: 'Orden Cancelada',
-      description: 'Los productos han sido removidos de la orden.',
-      variant: 'destructive',
-    })
-  }
+    setSelectedTable(null);
+  }, []);
 
   return (
     <div className="h-screen w-screen flex flex-col font-sans text-sm">
       <div className="flex flex-1 overflow-hidden">
-        <ActionPanel onClearOrder={clearOrder} />
+        <ActionPanel 
+            onClearOrder={clearOrder}
+            tables={tables}
+            loading={loadingTables}
+            selectedTable={selectedTable}
+            onSelectTable={setSelectedTable}
+        />
         
         <main className="flex-1 flex flex-col p-2 md:p-4 gap-4 bg-muted/30">
             <div className="flex gap-2 flex-wrap">
@@ -77,6 +102,10 @@ export default function PosLayout() {
                 orderItems={orderItems} 
                 onUpdateQuantity={updateItemQuantity} 
                 onRemoveItem={removeItemFromOrder} 
+                onClearOrder={clearOrder}
+                refetchTables={fetchTables}
+                shift={shift}
+                selectedTable={selectedTable}
             />
         </main>
 

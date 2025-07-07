@@ -41,3 +41,23 @@ export interface Shift {
   endingCash?: number | null;
   isActive: boolean;
 }
+
+export interface Order {
+    id: number;
+    shift_id: number;
+    table_id: number | null;
+    customer_name: string;
+    subtotal: number;
+    tax_amount: number;
+    total_amount: number;
+    status: 'pending' | 'completed' | 'cancelled';
+    created_at: string;
+}
+
+export interface OrderItemDetail {
+    id: number;
+    order_id: number;
+    product_id: number;
+    quantity: number;
+    price_at_time: number;
+}

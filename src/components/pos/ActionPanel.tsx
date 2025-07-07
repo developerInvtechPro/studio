@@ -1,40 +1,28 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Settings, Calendar, Ban, Search, Tag, Receipt, PauseCircle, LogOut, Lock } from 'lucide-react';
 import { useSession } from '@/context/SessionContext';
 import { useRouter } from 'next/navigation';
-import { getTablesAction } from '@/app/actions';
 import type { Table } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 
 interface ActionPanelProps {
     onClearOrder: () => void;
+    tables: Table[];
+    loading: boolean;
+    selectedTable: Table | null;
+    onSelectTable: (table: Table) => void;
 }
 
-export default function ActionPanel({ onClearOrder }: ActionPanelProps) {
+export default function ActionPanel({ onClearOrder, tables, loading, selectedTable, onSelectTable }: ActionPanelProps) {
   const { logout, endShift } = useSession();
   const router = useRouter();
-  const [tables, setTables] = useState<Table[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function fetchTables() {
-      try {
-        setLoading(true);
-        const tablesData = await getTablesAction();
-        setTables(tablesData);
-      } catch (error) {
-        console.error("Failed to fetch tables", error);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchTables();
-  }, []);
+  const { toast } = useToast();
 
   const handleLogout = async () => {
     await logout();
@@ -45,6 +33,15 @@ export default function ActionPanel({ onClearOrder }: ActionPanelProps) {
     await endShift();
     router.push('/login');
   };
+  
+  const handleClearOrder = () => {
+    onClearOrder();
+    toast({
+        title: 'Orden Cancelada',
+        description: 'Los productos han sido removidos de la orden.',
+        variant: 'destructive',
+    });
+  }
 
   const mainActions = [
     { label: 'SUSPENDER VENTA', icon: PauseCircle },
@@ -57,7 +54,7 @@ export default function ActionPanel({ onClearOrder }: ActionPanelProps) {
   return (
     <aside className="w-[220px] bg-sidebar text-sidebar-foreground flex flex-col p-2 gap-2 border-r border-sidebar-border">
       <div className="flex flex-col gap-2">
-        <Button variant="destructive" onClick={onClearOrder} className="w-full justify-center h-10 text-xs font-bold">
+        <Button variant="destructive" onClick={handleClearOrder} className="w-full justify-center h-10 text-xs font-bold">
             CANCELAR VENTA
         </Button>
         {mainActions.map((action) => (
@@ -81,7 +78,15 @@ export default function ActionPanel({ onClearOrder }: ActionPanelProps) {
             ))
           ) : (
             tables.map((table) => (
-              <Button key={table.id} variant="ghost" className="aspect-square h-auto hover:bg-sidebar-accent border border-sidebar-border">
+              <Button 
+                key={table.id} 
+                variant={selectedTable?.id === table.id ? 'secondary' : 'ghost'} 
+                className={cn("aspect-square h-auto hover:bg-sidebar-accent border border-sidebar-border", {
+                    "opacity-60": table.status === 'occupied'
+                })}
+                onClick={() => onSelectTable(table)}
+                disabled={table.status === 'occupied'}
+              >
                 {table.name}
               </Button>
             ))

@@ -3,7 +3,7 @@
 
 import type { SmartUpsellInput } from '@/ai/flows/smart-upsell';
 import type { BudgetTrackingInput } from '@/ai/flows/ai-powered-budget-and-profitability-tracking';
-import type { User, Category, Product, Table, Shift } from '@/lib/types';
+import type { User, Category, Product, Table, Shift, OrderItem } from '@/lib/types';
 import { getDbConnection } from '@/lib/db';
 import { getSmartUpsellRecommendations } from '@/ai/flows/smart-upsell';
 import { aiPoweredBudgetAndProfitabilityTracking } from '@/ai/flows/ai-powered-budget-and-profitability-tracking';
@@ -78,7 +78,6 @@ export async function startShiftAction(userId: number, startingCash: number): Pr
     const db = await getDbConnection();
     const now = new Date().toISOString();
     
-    // Deactivate any other active shifts for this user just in case
     await db.run("UPDATE shifts SET is_active = 0 WHERE user_id = ? AND is_active = 1", userId);
 
     const result = await db.run(
@@ -102,4 +101,59 @@ export async function endShiftAction(shiftId: number): Promise<void> {
         "UPDATE shifts SET is_active = 0, end_time = ? WHERE id = ?",
         new Date().toISOString(), shiftId
     );
+}
+
+export interface CreateOrderInput {
+    shiftId: number;
+    tableId: number | null;
+    items: OrderItem[];
+    subtotal: number;
+    tax: number;
+    total: number;
+    customerName: string;
+}
+
+export async function createOrderAction(input: CreateOrderInput): Promise<{ success: boolean; orderId?: number; error?: string }> {
+  const db = await getDbConnection();
+  try {
+    await db.run('BEGIN TRANSACTION');
+
+    const orderResult = await db.run(
+        `INSERT INTO orders (shift_id, table_id, customer_name, subtotal, tax_amount, total_amount, status, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, 'completed', ?)`,
+        input.shiftId,
+        input.tableId,
+        input.customerName,
+        input.subtotal,
+        input.tax,
+        input.total,
+        new Date().toISOString()
+    );
+
+    const orderId = orderResult.lastID;
+    if (!orderId) {
+        throw new Error("Failed to create order.");
+    }
+    
+    const itemStmt = await db.prepare(
+        'INSERT INTO order_items (order_id, product_id, quantity, price_at_time) VALUES (?, ?, ?, ?)'
+    );
+
+    for (const item of input.items) {
+        await itemStmt.run(orderId, item.product.id, item.quantity, item.product.price);
+    }
+    await itemStmt.finalize();
+
+    if (input.tableId) {
+        await db.run("UPDATE tables SET status = 'occupied' WHERE id = ?", input.tableId);
+    }
+
+    await db.run('COMMIT');
+
+    return { success: true, orderId: orderId };
+  } catch (error: any) {
+    await db.run('ROLLBACK');
+    console.error('Failed to create order:', error);
+    return { success: false, error: 'No se pudo crear la orden.' };
+  }
 }
