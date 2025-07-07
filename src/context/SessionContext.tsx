@@ -4,7 +4,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import type { User, Shift } from '@/lib/types';
 import Spinner from '@/components/ui/spinner';
-import { validateUser } from '@/lib/users';
+import { loginAction } from '@/app/actions';
 
 interface SessionContextType {
   user: User | null;
@@ -57,14 +57,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async (username: string, password: string) => {
-    const validatedUser = await validateUser(username, password);
+    const result = await loginAction({ username, password });
 
-    if (validatedUser) {
-      setUser(validatedUser);
-      localStorage.setItem('pos-user', JSON.stringify(validatedUser));
+    if (result.success && result.user) {
+      setUser(result.user);
+      localStorage.setItem('pos-user', JSON.stringify(result.user));
       return Promise.resolve();
     } else {
-      throw new Error('Credenciales inválidas');
+      throw new Error(result.error || 'Credenciales inválidas');
     }
   };
 
