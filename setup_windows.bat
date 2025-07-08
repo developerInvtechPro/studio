@@ -1,106 +1,92 @@
-echo [BCPOS] ==========================================================
-echo [BCPOS] BCPOS Installation and Auto-Start Setup for Windows
-echo [BCPOS] ==========================================================
-echo.
-echo [BCPOS] IMPORTANT: This script will request Administrator privileges
-echo [BCPOS] to install and configure the auto-start service.
-echo.
-pause
 
-:: -----------------------------------------------------------------
-:: Request Administrator privileges
-:: -----------------------------------------------------------------
->nul 2>&1 "%SYSTEMROOT%\system32\cacls.exe" "%SYSTEMROOT%\system32\config\system"
-if '%errorlevel%' NEQ '0' (
-    echo [BCPOS] Requesting Administrator privileges...
-    goto UACPrompt
-) else ( goto gotAdmin )
+@echo off
+ECHO ==========================================
+ECHO  Configurador Automatico de BCPOS para PM2
+ECHO ==========================================
+ECHO.
+ECHO Este script instalara y configurara PM2 para que BCPOS
+ECHO se inicie automaticamente con Windows.
+ECHO.
 
-:UACPrompt
-    echo Set UAC = CreateObject^("Shell.Application"^) > "%temp%\getadmin.vbs"
-    echo UAC.ShellExecute "%~s0", "", "", "runas", 1 >> "%temp%\getadmin.vbs"
-    "%temp%\getadmin.vbs"
-    exit /B
+:: 1. Solicitar privilegios de administrador
+:check_permissions
+    net session >nul 2>&1
+    if %errorlevel% == 0 (
+        ECHO [OK] Permisos de administrador concedidos.
+        goto :main_script
+    ) else (
+        ECHO [ERROR] Se requieren permisos de administrador.
+        ECHO Por favor, haga clic derecho en este archivo y seleccione "Ejecutar como administrador".
+        ECHO.
+        pause
+        exit
+    )
 
-:gotAdmin
-    if exist "%temp%\getadmin.vbs" ( del "%temp%\getadmin.vbs" )
-    pushd "%CD%"
-    CD /D "%~dp0"
-:: -----------------------------------------------------------------
-
-echo [BCPOS] Step 1: Installing project dependencies...
+:main_script
+ECHO.
+ECHO --- PASO 1: Instalando dependencias del proyecto ---
 call npm install
 if %errorlevel% neq 0 (
-    echo [BCPOS] [ERROR] Failed to install dependencies. Please check your internet connection and try again.
+    ECHO [ERROR] Fallo la instalacion de dependencias. Abortando.
     pause
-    exit /b 1
+    exit /b %errorlevel%
 )
-echo [BCPOS] Dependencies installed successfully.
-echo.
+ECHO [OK] Dependencias instaladas.
 
-echo [BCPOS] Step 2: Building the application for production...
+ECHO.
+ECHO --- PASO 2: Compilando la aplicacion para produccion ---
 call npm run build
 if %errorlevel% neq 0 (
-    echo [BCPOS] [ERROR] Failed to build the application.
+    ECHO [ERROR] Fallo la compilacion de la aplicacion. Abortando.
     pause
-    exit /b 1
+    exit /b %errorlevel%
 )
-echo [BCPOS] Application built successfully.
-echo.
+ECHO [OK] Aplicacion compilada.
 
-echo [BCPOS] Step 3: Setting up PM2 for auto-start...
-echo [BCPOS] -> Installing/Updating PM2 globally...
+ECHO.
+ECHO --- PASO 3: Instalando y configurando PM2 ---
+ECHO Instalando PM2 globalmente...
 call npm install pm2 -g
-if %errorlevel% neq 0 (
-    echo [BCPOS] [ERROR] Failed to install PM2.
-    pause
-    exit /b 1
-)
-
-echo [BCPOS] -> Installing PM2 Windows startup script...
+ECHO Instalando el servicio de inicio de PM2 para Windows...
 call npm install pm2-windows-startup -g
-if %errorlevel% neq 0 (
-    echo [BCPOS] [ERROR] Failed to install pm2-windows-startup.
-    pause
-    exit /b 1
-)
-echo.
-
-echo [BCPOS] -> Creating the startup service...
 call pm2-startup install
 if %errorlevel% neq 0 (
-    echo [BCPOS] [WARNING] Could not install the startup service automatically. You may need to run 'pm2-startup install' manually from an Administrator terminal.
+    ECHO [ADVERTENCIA] El comando pm2-startup podria haber fallado. Se continua de todas formas.
 )
-echo.
+ECHO [OK] Servicios de PM2 instalados.
 
-echo [BCPOS] Step 4: Starting BCPOS with PM2...
-echo [BCPOS] -> Removing any old 'bcpos' process to ensure a clean start...
-call pm2 delete bcpos > nul 2>&1
-echo [BCPOS] -> Starting the application...
-call npm run pm2:start
+ECHO.
+ECHO --- PASO 4: Iniciando BCPOS con PM2 ---
+ECHO Deteniendo cualquier version anterior de BCPOS...
+call pm2 delete bcpos >nul 2>&1
+ECHO Iniciando BCPOS...
+call pm2 start ecosystem.config.js
 if %errorlevel% neq 0 (
-    echo [BCPOS] [ERROR] Failed to start the application with PM2.
+    ECHO [ERROR] Fallo al iniciar BCPOS con PM2. Abortando.
     pause
-    exit /b 1
+    exit /b %errorlevel%
 )
-echo.
+ECHO [OK] Aplicacion iniciada.
 
-echo [BCPOS] Step 5: Saving the process list for auto-restart...
+ECHO.
+ECHO --- PASO 5: Guardando la configuracion de PM2 ---
 call pm2 save
 if %errorlevel% neq 0 (
-    echo [BCPOS] [ERROR] Failed to save the PM2 process list.
+    ECHO [ERROR] Fallo al guardar la lista de procesos de PM2.
     pause
-    exit /b 1
+    exit /b %errorlevel%
 )
-echo.
+ECHO [OK] Configuracion guardada.
 
-echo [BCPOS] ==========================================================
-echo [BCPOS] Installation complete!
-echo [BCPOS] BCPOS is now running and configured to start automatically.
-echo [BCPOS] You can access it at http://localhost:3000
-echo [BCPOS] ----------------------------------------------------------
-echo [BCPOS] Current status:
+ECHO.
+ECHO =======================================================
+ECHO  PROCESO DE CONFIGURACION FINALIZADO
+ECHO =======================================================
+ECHO.
+ECHO Verificando estado final de BCPOS:
 call pm2 list
-echo ==========================================================
-echo.
+ECHO.
+ECHO Si el estado de 'bcpos' es 'online', la configuracion fue exitosa.
+ECHO Puede acceder a la aplicacion en http://localhost:3000
+ECHO.
 pause

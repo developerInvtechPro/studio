@@ -153,3 +153,4 @@ Este proceso es similar al anterior, pero en lugar de usar un servidor local, se
     *   En cada terminal, abre un navegador y ve a la URL pública. Todos se conectarán al mismo sistema.
 
 Este modelo es más complejo de configurar al principio, pero es la arquitectura correcta, escalable y robusta para un sistema de punto de venta real.
+
