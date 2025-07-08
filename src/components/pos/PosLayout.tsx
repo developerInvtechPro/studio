@@ -24,6 +24,8 @@ import {
     updateTableStatusAction,
     transferOrderAction,
     applyDiscountAction,
+    getOpenBarOrder,
+    addItemToBarOrder,
 } from '@/app/actions';
 
 export default function PosLayout() {
@@ -32,6 +34,8 @@ export default function PosLayout() {
   const [tables, setTables] = useState<Table[]>([]);
   const [loadingTables, setLoadingTables] = useState(true);
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);
+  const [activeMode, setActiveMode] = useState<'table' | 'bar'>('table');
+  
   const [isReserveModalOpen, setReserveModalOpen] = useState(false);
   const [isTransferModalOpen, setTransferModalOpen] = useState(false);
   const [transferTargetTable, setTransferTargetTable] = useState<Table | null>(null);
@@ -69,41 +73,71 @@ export default function PosLayout() {
     return () => clearInterval(timer);
   }, []);
   
-  useEffect(() => {
-    if (selectedTable) {
-        setLoadingOrder(true);
-        getOpenOrderForTable(selectedTable.id)
-            .then(order => {
-                setActiveOrder(order);
-            })
-            .catch(() => {
-                toast({ variant: 'destructive', title: 'Error', description: 'No se pudo cargar la orden para esta mesa.'})
-            })
-            .finally(() => {
-                setLoadingOrder(false);
-            });
-    } else {
-        setActiveOrder(null);
+  const fetchOrderForTable = useCallback(async (tableId: number) => {
+    setLoadingOrder(true);
+    try {
+        const order = await getOpenOrderForTable(tableId);
+        setActiveOrder(order);
+    } catch (error) {
+        toast({ variant: 'destructive', title: 'Error', description: 'No se pudo cargar la orden para esta mesa.' });
+    } finally {
+        setLoadingOrder(false);
     }
-  }, [selectedTable, toast]);
+  }, [toast]);
 
+  const fetchBarOrder = useCallback(async () => {
+      if (!shift) return;
+      setLoadingOrder(true);
+      try {
+          const order = await getOpenBarOrder(shift.id);
+          setActiveOrder(order);
+      } catch (error) {
+          toast({ variant: 'destructive', title: 'Error', description: 'No se pudo cargar la orden para llevar.' });
+      } finally {
+          setLoadingOrder(false);
+      }
+  }, [shift, toast]);
+
+  useEffect(() => {
+    if (activeMode === 'table') {
+        if (selectedTable) {
+            fetchOrderForTable(selectedTable.id);
+        } else {
+            setActiveOrder(null);
+        }
+    } else if (activeMode === 'bar') {
+        fetchBarOrder();
+    }
+  }, [selectedTable, activeMode, fetchOrderForTable, fetchBarOrder]);
 
   const addProductToOrder = async (product: Product) => {
-    if (!selectedTable || !shift) {
-        toast({ variant: 'destructive', title: 'Acción inválida', description: 'Por favor, seleccione una mesa antes de agregar productos.' });
-        return;
-    }
-    if (selectedTable.status === 'reserved') {
-        toast({ variant: 'destructive', title: 'Acción inválida', description: 'No se puede agregar productos a una mesa reservada.' });
+    if (!shift) {
+        toast({ variant: 'destructive', title: 'Acción inválida', description: 'No hay un turno activo.' });
         return;
     }
 
     setLoadingOrder(true);
-    const result = await addItemToOrder(selectedTable.id, shift.id, product.id);
+    let result;
+
+    if (activeMode === 'table') {
+        if (!selectedTable) {
+            toast({ variant: 'destructive', title: 'Acción inválida', description: 'Por favor, seleccione una mesa antes de agregar productos.' });
+            setLoadingOrder(false);
+            return;
+        }
+        if (selectedTable.status === 'reserved') {
+            toast({ variant: 'destructive', title: 'Acción inválida', description: 'No se puede agregar productos a una mesa reservada.' });
+            setLoadingOrder(false);
+            return;
+        }
+        result = await addItemToOrder(selectedTable.id, shift.id, product.id);
+    } else { // activeMode === 'bar'
+        result = await addItemToBarOrder(shift.id, product.id);
+    }
     
     if (result.success && result.data) {
         setActiveOrder(result.data);
-        if (selectedTable.status === 'available') {
+        if (activeMode === 'table' && selectedTable?.status === 'available') {
             fetchTables();
         }
     } else {
@@ -141,19 +175,23 @@ export default function PosLayout() {
       try {
         await cancelOrder(activeOrder.id);
         setActiveOrder(null);
-        fetchTables(); // Refresh tables to update status
+        if (activeMode === 'table') {
+            fetchTables();
+        }
       } catch (error) {
         toast({ variant: 'destructive', title: 'Error', description: 'No se pudo cancelar la orden.' });
       } finally {
         setLoadingOrder(false);
       }
     }
-  }, [activeOrder, fetchTables, toast]);
+  }, [activeOrder, fetchTables, toast, activeMode]);
   
   const handleOrderFinalized = useCallback(() => {
     setActiveOrder(null);
-    fetchTables();
-  }, [fetchTables]);
+    if (activeMode === 'table') {
+        fetchTables();
+    }
+  }, [fetchTables, activeMode]);
 
   const handleReserveTable = async (table: Table) => {
     if (table.status === 'occupied') {
@@ -205,7 +243,20 @@ export default function PosLayout() {
     }
     setLoadingOrder(false);
   };
+  
+  const handleTableSelection = (table: Table | null) => {
+      setActiveMode('table');
+      if (selectedTable?.id === table?.id) {
+          setSelectedTable(null);
+      } else {
+          setSelectedTable(table);
+      }
+  }
 
+  const handleBarOrderClick = () => {
+      setActiveMode('bar');
+      setSelectedTable(null);
+  }
 
   return (
     <div className="h-screen w-screen flex flex-col font-sans text-sm">
@@ -215,13 +266,15 @@ export default function PosLayout() {
             tables={tables}
             loading={loadingTables}
             selectedTable={selectedTable}
-            onSelectTable={setSelectedTable}
+            onSelectTable={handleTableSelection}
             onOpenReserveDialog={() => setReserveModalOpen(true)}
             onOpenTransferDialog={() => setTransferModalOpen(true)}
             hasOpenOrder={!!activeOrder && activeOrder.items.length > 0}
             onOpenDiscountDialog={() => setDiscountDialogOpen(true)}
             onOpenSearchProductDialog={() => setSearchProductDialogOpen(true)}
             onOpenRemoveItemDialog={() => setRemoveItemDialogOpen(true)}
+            onBarOrderClick={handleBarOrderClick}
+            isBarOrderActive={activeMode === 'bar'}
         />
         
         <main className="flex-1 flex flex-col p-2 md:p-4 gap-4 bg-muted/30">
@@ -238,6 +291,7 @@ export default function PosLayout() {
                 onRemoveItem={handleRemoveItem} 
                 shift={shift}
                 selectedTable={selectedTable}
+                activeMode={activeMode}
                 onOrderFinalized={handleOrderFinalized}
             />
         </main>

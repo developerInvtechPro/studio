@@ -56,4 +56,5 @@ export interface Order {
     status: 'pending' | 'completed' | 'cancelled';
     created_at: string;
     items: OrderItem[];
+    order_type: 'dine-in' | 'take-away' | 'delivery';
 }

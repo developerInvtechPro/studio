@@ -18,6 +18,7 @@ interface OrderSummaryProps {
   isLoading: boolean;
   shift: Shift | null;
   selectedTable: Table | null;
+  activeMode: 'table' | 'bar';
   onUpdateQuantity: (orderItemId: number, newQuantity: number) => Promise<void>;
   onRemoveItem: (orderItemId: number) => Promise<void>;
   onOrderFinalized: () => void;
@@ -27,7 +28,8 @@ export default function OrderSummary({
   order, 
   isLoading, 
   shift, 
-  selectedTable, 
+  selectedTable,
+  activeMode,
   onUpdateQuantity,
   onRemoveItem,
   onOrderFinalized,
@@ -59,18 +61,21 @@ export default function OrderSummary({
       )
     }
     
-    if (!selectedTable) {
+    if (activeMode === 'table' && !selectedTable) {
         return (
             <div className="h-full flex items-center justify-center text-muted-foreground p-8 text-center">
-                Seleccione una mesa a la izquierda para ver o crear una orden.
+                Seleccione una mesa o inicie una orden para llevar.
             </div>
         );
     }
     
     if (!order || order.items.length === 0) {
+        const message = activeMode === 'bar' 
+            ? 'Agregue productos para iniciar la orden para llevar.'
+            : `Agregue productos para iniciar la orden de ${selectedTable?.name}.`;
         return (
             <div className="h-full flex items-center justify-center text-muted-foreground p-8 text-center">
-                Agregue productos para iniciar la orden de {selectedTable.name}.
+                {message}
             </div>
         )
     }
@@ -113,11 +118,21 @@ export default function OrderSummary({
     )
   }
 
+  const getTitle = () => {
+      if (activeMode === 'bar') {
+          return 'Orden para Llevar';
+      }
+      if (selectedTable) {
+          return `Consumos - ${selectedTable.name}`;
+      }
+      return 'Consumos';
+  }
+
   return (
     <Card className="flex-grow flex flex-col h-full">
       <CardHeader className="py-4">
         <CardTitle className="font-headline text-lg">
-            {selectedTable ? `Consumos - ${selectedTable.name}` : 'Consumos'}
+            {getTitle()}
         </CardTitle>
       </CardHeader>
       <CardContent className="flex-grow p-0 relative">

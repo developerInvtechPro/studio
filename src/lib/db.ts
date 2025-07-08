@@ -67,7 +67,7 @@ let dbPromise: Promise<Database> | null = null;
 
 const initializeDb = async () => {
     const db = await open({
-        filename: './cafe_central_v2.db',
+        filename: './cafe_central_v3.db',
         driver: sqlite3.verbose().Database,
     });
 
@@ -125,6 +125,7 @@ const initializeDb = async () => {
             total_amount REAL NOT NULL,
             status TEXT NOT NULL,
             created_at TEXT NOT NULL,
+            order_type TEXT NOT NULL DEFAULT 'dine-in',
             FOREIGN KEY (shift_id) REFERENCES shifts(id),
             FOREIGN KEY (table_id) REFERENCES tables(id)
         );

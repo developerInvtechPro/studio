@@ -237,6 +237,27 @@ export async function getOpenOrderForTable(tableId: number): Promise<Order | nul
     }
 }
 
+
+export async function getOpenBarOrder(shiftId: number): Promise<Order | null> {
+    try {
+        const db = await getDbConnection();
+        const openOrderHeader = await db.get<Omit<Order, 'items'>>(
+            "SELECT * FROM orders WHERE shift_id = ? AND status = 'pending' AND table_id IS NULL",
+            shiftId
+        );
+
+        if (!openOrderHeader) {
+            return null;
+        }
+
+        return getOrderFromDb(db, openOrderHeader.id);
+    } catch (error) {
+        console.error("Failed to get open bar order:", error);
+        return null;
+    }
+}
+
+
 export async function addItemToOrder(tableId: number, shiftId: number, productId: number): Promise<{ success: boolean; data?: Order; error?: string }> {
     try {
         const db = await getDbConnection();
@@ -247,8 +268,8 @@ export async function addItemToOrder(tableId: number, shiftId: number, productId
             
             if (!order) {
                 const orderResult = await db.run(
-                    `INSERT INTO orders (shift_id, table_id, customer_name, subtotal, tax_amount, total_amount, status, created_at, discount_percentage, discount_amount)
-                     VALUES (?, ?, ?, 0, 0, 0, 'pending', ?, 0, 0)`,
+                    `INSERT INTO orders (shift_id, table_id, customer_name, subtotal, tax_amount, total_amount, status, created_at, discount_percentage, discount_amount, order_type)
+                     VALUES (?, ?, ?, 0, 0, 0, 'pending', ?, 0, 0, 'dine-in')`,
                     shiftId, tableId, `Mesa ${tableId}`, new Date().toISOString()
                 );
                 const orderId = orderResult.lastID!;
@@ -291,6 +312,58 @@ export async function addItemToOrder(tableId: number, shiftId: number, productId
     }
 }
 
+export async function addItemToBarOrder(shiftId: number, productId: number): Promise<{ success: boolean; data?: Order; error?: string }> {
+    try {
+        const db = await getDbConnection();
+        await db.run('BEGIN TRANSACTION');
+
+        try {
+            let order = await db.get<Omit<Order, 'items'>>("SELECT * FROM orders WHERE shift_id = ? AND status = 'pending' AND table_id IS NULL", shiftId);
+            
+            if (!order) {
+                const orderResult = await db.run(
+                    `INSERT INTO orders (shift_id, table_id, customer_name, subtotal, tax_amount, total_amount, status, created_at, discount_percentage, discount_amount, order_type)
+                     VALUES (?, NULL, ?, 0, 0, 0, 'pending', ?, 0, 0, 'take-away')`,
+                    shiftId, `Para Llevar`, new Date().toISOString()
+                );
+                const orderId = orderResult.lastID!;
+                order = await db.get<Omit<Order, 'items'>>('SELECT * FROM orders WHERE id = ?', orderId);
+                if (!order) {
+                  throw new Error("Failed to create and retrieve the new bar order.");
+                }
+            }
+
+            const existingItem = await db.get("SELECT * FROM order_items WHERE order_id = ? AND product_id = ?", order.id, productId);
+            
+            if (existingItem) {
+                await db.run("UPDATE order_items SET quantity = quantity + 1 WHERE id = ?", existingItem.id);
+            } else {
+                const product = await db.get<Product>("SELECT price FROM products WHERE id = ?", productId);
+                if (!product) {
+                    throw new Error("Product not found");
+                }
+                await db.run(
+                    "INSERT INTO order_items (order_id, product_id, quantity, price_at_time) VALUES (?, ?, 1, ?)",
+                    order.id, productId, product.price
+                );
+            }
+
+            await recalculateOrderTotals(db, order.id);
+            await db.run('COMMIT');
+
+            const fullOrder = await getOrderFromDb(db, order.id);
+            if (!fullOrder) throw new Error("Could not retrieve updated order.");
+            return { success: true, data: fullOrder };
+
+        } catch (innerError: any) {
+            await db.run('ROLLBACK');
+            throw innerError;
+        }
+    } catch (error: any) {
+        console.error("Failed to add item to bar order:", error);
+        return { success: false, error: error.message || "Could not add item to bar order." };
+    }
+}
 
 export async function updateOrderItemQuantity(orderItemId: number, newQuantity: number): Promise<{ success: boolean; data?: Order; error?: string }> {
     try {

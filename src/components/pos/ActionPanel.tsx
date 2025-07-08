@@ -3,7 +3,7 @@
 
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Settings, Calendar, Ban, Search, Tag, Receipt, PauseCircle, LogOut, Lock, Move } from 'lucide-react';
+import { Settings, Calendar, Ban, Search, Tag, Receipt, PauseCircle, LogOut, Lock, Move, ShoppingCart } from 'lucide-react';
 import { useSession } from '@/context/SessionContext';
 import { useRouter } from 'next/navigation';
 import type { Table } from '@/lib/types';
@@ -23,6 +23,8 @@ interface ActionPanelProps {
     onOpenSearchProductDialog: () => void;
     onOpenDiscountDialog: () => void;
     hasOpenOrder: boolean;
+    onBarOrderClick: () => void;
+    isBarOrderActive: boolean;
 }
 
 export default function ActionPanel({ 
@@ -37,6 +39,8 @@ export default function ActionPanel({
     onOpenSearchProductDialog,
     onOpenDiscountDialog,
     hasOpenOrder,
+    onBarOrderClick,
+    isBarOrderActive,
 }: ActionPanelProps) {
   const { logout, endShift } = useSession();
   const router = useRouter();
@@ -53,11 +57,11 @@ export default function ActionPanel({
   };
   
   const handleClearOrder = () => {
-    if (!selectedTable) {
+    if (!hasOpenOrder) {
         toast({
             variant: 'destructive',
             title: 'Error',
-            description: 'No hay una mesa seleccionada para cancelar.',
+            description: 'No hay una orden activa para cancelar.',
         });
         return;
     }
@@ -85,14 +89,6 @@ export default function ActionPanel({
     { label: 'DESCUENTO', icon: Tag, onClick: onOpenDiscountDialog, disabled: !hasOpenOrder },
   ];
 
-  const handleTableSelection = (table: Table) => {
-    if (selectedTable?.id === table.id) {
-        onSelectTable(null);
-    } else {
-        onSelectTable(table);
-    }
-  }
-
   return (
     <aside className="w-[220px] bg-sidebar text-sidebar-foreground flex flex-col p-2 gap-2 border-r border-sidebar-border">
       <div className="flex flex-col gap-2">
@@ -107,10 +103,19 @@ export default function ActionPanel({
       </div>
       <div className="flex flex-col gap-2">
         <Button onClick={handleNotImplemented} className="w-full bg-blue-500 hover:bg-blue-600 text-white text-xs h-10">NUEVO DELIVERY</Button>
-        <Button onClick={handleNotImplemented} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground text-xs h-10">NUEVO PICKUP</Button>
+        <Button 
+            onClick={onBarOrderClick}
+            variant={isBarOrderActive ? 'secondary' : 'default'}
+            className={cn("w-full text-xs h-10", {
+                "bg-primary hover:bg-primary/90 text-primary-foreground": !isBarOrderActive,
+                "bg-sidebar-primary text-sidebar-primary-foreground": isBarOrderActive
+            })}
+        >
+            <ShoppingCart className="mr-2 h-4 w-4" /> ORDEN P/ LLEVAR
+        </Button>
       </div>
       <div className="flex flex-col gap-2">
-        <Button onClick={onOpenTransferDialog} disabled={!hasOpenOrder} variant="ghost" className="w-full justify-center bg-purple-500 hover:bg-purple-600 text-white text-xs h-10">
+        <Button onClick={onOpenTransferDialog} disabled={!hasOpenOrder || isBarOrderActive} variant="ghost" className="w-full justify-center bg-purple-500 hover:bg-purple-600 text-white text-xs h-10">
             <Move className="mr-2 h-4 w-4" /> TRASLADAR MESA
         </Button>
         <Button onClick={onOpenReserveDialog} variant="ghost" className="w-full justify-center bg-orange-500 hover:bg-orange-600 text-white text-xs h-10">
@@ -132,8 +137,10 @@ export default function ActionPanel({
                     "opacity-60 ring-2 ring-destructive": table.status === 'occupied' && selectedTable?.id !== table.id,
                     "opacity-60 ring-2 ring-yellow-400": table.status === 'reserved' && selectedTable?.id !== table.id,
                     "bg-secondary text-secondary-foreground": selectedTable?.id === table.id,
+                    "opacity-50": isBarOrderActive
                 })}
-                onClick={() => handleTableSelection(table)}
+                onClick={() => onSelectTable(table)}
+                disabled={isBarOrderActive}
               >
                 {table.name}
               </Button>
