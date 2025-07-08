@@ -12,7 +12,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { BcposLogo } from '@/components/ui/BcposLogo';
+import { Coffee } from 'lucide-react';
 
 const loginSchema = z.object({
   username: z.string().min(3, { message: 'El nombre de usuario debe tener al menos 3 caracteres.' }),
@@ -76,8 +76,11 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-muted/30">
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
-           <BcposLogo className="mx-auto" />
-          <CardDescription className='pt-4'>Ingrese sus credenciales para continuar</CardDescription>
+            <div className="flex flex-col items-center justify-center gap-2 mb-2">
+                <Coffee className="h-12 w-12 text-primary" />
+                <CardTitle className="text-3xl font-bold">BCPOS</CardTitle>
+            </div>
+            <CardDescription>Ingrese sus credenciales para continuar</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
