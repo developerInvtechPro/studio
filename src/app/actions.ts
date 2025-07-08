@@ -909,7 +909,47 @@ export async function saveProductAction(product: Omit<Product, 'id'> & { id?: nu
     }
 }
 
+export async function saveCategoryAction(category: Omit<Category, 'id'> & { id?: number }): Promise<{ success: boolean; data?: Category; error?: string }> {
+    try {
+        const db = await getDbConnection();
+        const { id, name, iconName } = category;
 
+        if (!name || !iconName) {
+            return { success: false, error: "Nombre e icono son requeridos." };
+        }
+
+        let lastId = id;
+
+        if (id) {
+            await db.run(
+                `UPDATE categories SET name = ?, icon_name = ? WHERE id = ?`,
+                name, iconName, id
+            );
+        } else {
+            const result = await db.run(
+                `INSERT INTO categories (name, icon_name) VALUES (?, ?)`,
+                name, iconName
+            );
+            lastId = result.lastID!;
+        }
+
+        if (!lastId) {
+            return { success: false, error: 'Could not determine category ID after save.' };
+        }
+
+        const savedCategory = await db.get<Category>("SELECT id, name, icon_name as iconName FROM categories WHERE id = ?", lastId);
+
+        if (!savedCategory) {
+            return { success: false, error: 'Could not retrieve category after saving.' };
+        }
+        
+        return { success: true, data: savedCategory };
+
+    } catch (error: any) {
+        console.error("Failed to save category:", error);
+        return { success: false, error: "No se pudo guardar la categoría." };
+    }
+}
 // #endregion
 
 // #region Supplier Actions

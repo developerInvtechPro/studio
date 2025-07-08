@@ -12,6 +12,7 @@ const menuItems = [
   { href: '/admin', label: 'Dashboard', icon: 'LayoutDashboard' },
   { href: '/admin/empresa', label: 'Empresa', icon: 'Building' },
   { href: '/admin/productos', label: 'Productos', icon: 'Package' },
+  { href: '/admin/categorias', label: 'Categorías', icon: 'LayoutGrid' },
   { href: '/admin/cai', label: 'CAI', icon: 'FileKey' },
   { href: '/admin/medios-pago', label: 'Medios de Pago', icon: 'CreditCard' },
   { href: '/admin/proveedores', label: 'Proveedores', icon: 'Truck' },
