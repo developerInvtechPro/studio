@@ -56,7 +56,7 @@ Para evitar tener que iniciar el servidor manualmente cada vez que se reinicia l
     ```bash
     npm run pm2:start
     ```
-    Esto iniciará la aplicación con el nombre `bcpos` y la mantendrá corriendo en segundo plano. El script está configurado para que PM2 ejecute Next.js directamente, lo cual es más estable, especialmente en Windows.
+    Esto iniciará la aplicación con el nombre `bcpos` (definido en el archivo `ecosystem.config.js`) y la mantendrá corriendo en segundo plano. El uso de `ecosystem.config.js` es el método más estable y recomendado para ejecutar aplicaciones de Next.js, especialmente en Windows.
 
 3.  **Configurar el Inicio Automático (Elige tu Sistema Operativo):**
 
@@ -68,7 +68,7 @@ Para evitar tener que iniciar el servidor manualmente cada vez que se reinicia l
     Después de ejecutarlo, copia el comando que te aparece en la terminal y ejecútalo también.
 
     #### **Opción B: Para Windows (¡Esta es la tuya!)**
-    El comando `pm2 startup` no funciona directamente en Windows, por eso recibiste el error `Init system not found`. Para solucionarlo, usaremos un paquete diseñado específicamente para esto.
+    El comando `pm2 startup` no funciona directamente en Windows, por eso podrías haber recibido el error `Init system not found`. Para solucionarlo, usaremos un paquete diseñado específicamente para esto.
 
     1.  Abre una terminal (PowerShell o Símbolo del sistema) **como Administrador**.
     2.  Instala el siguiente paquete globalmente:
