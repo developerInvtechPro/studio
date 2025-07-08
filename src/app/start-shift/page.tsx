@@ -13,7 +13,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { LogIn } from 'lucide-react';
+import { LogIn, ArrowRight } from 'lucide-react';
 
 const startShiftSchema = z.object({
   startingCash: z.coerce.number().min(0, { message: 'El fondo de caja no puede ser negativo.' }),
@@ -93,6 +93,15 @@ function StartShiftPage() {
             </form>
           </Form>
         </CardContent>
+        {user?.role === 'admin' && (
+            <CardFooter className="flex-col gap-2 border-t pt-4">
+                <p className="text-xs text-muted-foreground text-center">Como administrador, también puedes ir directamente al panel de control.</p>
+                <Button variant="secondary" className="w-full" onClick={() => router.push('/admin')}>
+                    Ir al Panel de Administración
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+            </CardFooter>
+        )}
       </Card>
     </div>
   );

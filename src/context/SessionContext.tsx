@@ -10,7 +10,7 @@ interface SessionContextType {
   user: User | null;
   shift: Shift | null;
   loading: boolean;
-  login: (username: string, password: string) => Promise<void>;
+  login: (username: string, password: string) => Promise<User>;
   logout: () => Promise<void>;
   startShift: (startingCash: number) => Promise<void>;
   endShift: () => Promise<void>;
@@ -49,7 +49,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     checkSession();
   }, []);
 
-  const login = async (username: string, password: string) => {
+  const login = async (username: string, password: string): Promise<User> => {
     const result = await loginAction({ username, password });
 
     if (result.success && result.user) {
@@ -60,7 +60,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       if (activeShift) {
         setShift(activeShift);
       }
-      return Promise.resolve();
+      return Promise.resolve(fullUser);
     } else {
       throw new Error(result.error || 'Credenciales inválidas');
     }
