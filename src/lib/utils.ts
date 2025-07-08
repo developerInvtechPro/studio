@@ -1,6 +1,6 @@
 import { type ClassValue, clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
-import { conversor } from 'numero-a-letras';
+import conversor from 'numero-a-letras';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
