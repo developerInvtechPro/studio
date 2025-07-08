@@ -38,6 +38,7 @@ import {
     getInvoiceDataAction,
     suspendOrderAction,
     recallOrderAction,
+    getLastInvoiceForShiftAction,
 } from '@/app/actions';
 
 export default function PosLayout() {
@@ -352,10 +353,11 @@ export default function PosLayout() {
   };
 
   const handleReprintLast = async () => {
-    if (!shift) return;
-    // This action needs to be modified to get the last *invoiced* order.
-    // For now, let's find the last completed order and try to get its invoice data.
-    const result = await getInvoiceDataAction(0); // This needs to be updated.
+    if (!shift) {
+        toast({ variant: 'destructive', title: 'Error', description: 'No hay un turno activo.' });
+        return;
+    }
+    const result = await getLastInvoiceForShiftAction(shift.id);
     if (result.success && result.data) {
         setInvoiceData(result.data);
         setInvoiceDialogOpen(true);
@@ -461,7 +463,7 @@ export default function PosLayout() {
                 onOpenShiftSummaryDialog={() => setShiftSummaryDialogOpen(true)}
                 onEndShift={handleEndShift}
                 onLogout={handleLogout}
-                onReprintLast={() => toast({ title: 'Próximamente', description: 'Función de reimprimir no implementada.' })}
+                onReprintLast={handleReprintLast}
                 onViewHistory={handleViewHistory}
             />
         </aside>

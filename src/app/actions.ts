@@ -877,6 +877,30 @@ export async function getInvoiceDataAction(orderId: number): Promise<{ success: 
         return { success: false, error: error.message || "No se pudo obtener la información de la factura." };
     }
 }
+
+export async function getLastInvoiceForShiftAction(shiftId: number): Promise<{ success: boolean; data?: FullInvoiceData; error?: string }> {
+    try {
+        const db = await getDbConnection();
+        const lastOrder = await db.get<Order>(
+            `SELECT id
+             FROM orders
+             WHERE shift_id = ? AND status = 'completed' AND invoice_number IS NOT NULL
+             ORDER BY created_at DESC
+             LIMIT 1`,
+            shiftId
+        );
+
+        if (!lastOrder) {
+            return { success: false, error: "No se encontró la última factura para este turno." };
+        }
+
+        return getInvoiceDataAction(lastOrder.id);
+
+    } catch (error: any) {
+        console.error("Failed to get last invoice for shift:", error);
+        return { success: false, error: "No se pudo obtener la última factura." };
+    }
+}
 // #endregion
 
 // #region Admin Actions
