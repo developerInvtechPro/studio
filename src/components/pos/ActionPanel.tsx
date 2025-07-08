@@ -128,10 +128,8 @@ export default function ActionPanel({
                     "opacity-60 ring-2 ring-destructive": table.status === 'occupied' && selectedTable?.id !== table.id,
                     "opacity-60 ring-2 ring-yellow-400": table.status === 'reserved' && selectedTable?.id !== table.id,
                     "bg-secondary text-secondary-foreground": selectedTable?.id === table.id,
-                    "opacity-50": isBarOrderActive
                 })}
                 onClick={() => onSelectTable(table)}
-                disabled={isBarOrderActive}
               >
                 {table.name}
               </Button>
