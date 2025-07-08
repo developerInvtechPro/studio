@@ -19,6 +19,7 @@ interface ShiftSummaryDialogProps {
 interface SummaryData {
     totalSales: number;
     totalOrders: number;
+    totalDiscounts: number;
     salesByPaymentMethod: { name: string; total: number }[];
     startingCash: number;
     cashSales: number;
@@ -69,6 +70,10 @@ export default function ShiftSummaryDialog({ isOpen, onOpenChange, shift }: Shif
                                     <TableRow>
                                         <TableCell className="font-semibold">Ventas Totales</TableCell>
                                         <TableCell className="text-right font-bold">{formatCurrency(summary.totalSales)}</TableCell>
+                                    </TableRow>
+                                     <TableRow>
+                                        <TableCell className="font-semibold text-destructive">Total Descuentos</TableCell>
+                                        <TableCell className="text-right font-bold text-destructive">-{formatCurrency(summary.totalDiscounts)}</TableCell>
                                     </TableRow>
                                      <TableRow>
                                         <TableCell className="font-semibold">Total Órdenes</TableCell>

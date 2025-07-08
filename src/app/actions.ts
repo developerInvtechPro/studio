@@ -629,6 +629,7 @@ export async function getPaymentMethodsAction(): Promise<PaymentMethod[]> {
 interface ShiftSummary {
     totalSales: number;
     totalOrders: number;
+    totalDiscounts: number;
     salesByPaymentMethod: { name: string, total: number }[];
     startingCash: number;
     cashSales: number;
@@ -644,8 +645,10 @@ export async function getShiftSummaryAction(shiftId: number): Promise<{ success:
             return { success: false, error: "Turno no encontrado." };
         }
 
-        const orders = await db.all<Order>("SELECT id, total_amount FROM orders WHERE shift_id = ? AND status = 'completed'", shiftId);
+        const orders = await db.all<{ total_amount: number; discount_amount: number; }>("SELECT total_amount, discount_amount FROM orders WHERE shift_id = ? AND status = 'completed'", shiftId);
+        
         const totalSales = orders.reduce((sum, o) => sum + o.total_amount, 0);
+        const totalDiscounts = orders.reduce((sum, o) => sum + o.discount_amount, 0);
         const totalOrders = orders.length;
 
         const payments = await db.all<{ name: string, total: number }>(
@@ -663,6 +666,7 @@ export async function getShiftSummaryAction(shiftId: number): Promise<{ success:
         const summary: ShiftSummary = {
             totalSales,
             totalOrders,
+            totalDiscounts,
             salesByPaymentMethod: payments,
             startingCash: shift.starting_cash,
             cashSales,
