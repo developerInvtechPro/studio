@@ -452,7 +452,8 @@ export async function processPaymentAction(orderId: number, payments: Payment[])
         }
 
         const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
-        if (totalPaid < order.total_amount) {
+        // Use a small tolerance (epsilon) for floating point comparison
+        if ((order.total_amount - totalPaid) > 0.001) {
             throw new Error(`El pago (L ${totalPaid.toFixed(2)}) es insuficiente para cubrir el total de la orden (L ${order.total_amount.toFixed(2)}).`);
         }
 
