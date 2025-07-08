@@ -1,6 +1,6 @@
 import { type ClassValue, clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
-import conversor from 'numero-a-letras';
+import numeroALetras from 'numero-a-letras';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -10,7 +10,8 @@ export function cn(...inputs: ClassValue[]) {
 export function numberToWords(num: number): string {
   if (num === null || num === undefined) return '';
   try {
-    return conversor.aLetras(num, {
+    // The library's default export is the function itself, so we call it directly.
+    return numeroALetras(num, {
       plural: 'LEMPIRAS',
       singular: 'LEMPIRA',
       centimos: {
