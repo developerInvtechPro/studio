@@ -40,13 +40,17 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginFormValues) => {
     setLoading(true);
     try {
-      await login(data.username, data.password);
+      const loggedInUser = await login(data.username, data.password);
       toast({
         title: '¡Bienvenido!',
         description: 'Has iniciado sesión correctamente.',
       });
       
-      router.push('/start-shift');
+      if (loggedInUser.role === 'admin') {
+        router.push('/admin');
+      } else {
+        router.push('/start-shift');
+      }
 
     } catch (error) {
       toast({
