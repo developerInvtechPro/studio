@@ -44,11 +44,7 @@ export default function LoginPage() {
         description: 'Has iniciado sesión correctamente.',
       });
 
-      if (loggedInUser.role === 'admin') {
-        router.push('/admin');
-      } else {
-        router.push('/');
-      }
+      router.push('/start-shift');
 
     } catch (error) {
       toast({
@@ -62,14 +58,9 @@ export default function LoginPage() {
     }
   };
   
-  // If user is already logged in, redirect them
   if (!sessionLoading && user) {
-      if (user.role === 'admin') {
-        router.replace('/admin');
-      } else {
-        router.replace('/');
-      }
-      return null; // Render nothing while redirecting
+      router.replace('/start-shift');
+      return null;
   }
 
   return (

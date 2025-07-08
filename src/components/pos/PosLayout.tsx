@@ -511,7 +511,7 @@ export default function PosLayout() {
             />
         </aside>
       </div>
-      <footer className="h-8 px-4 bg-blue-700 text-white flex justify-between items-center text-xs z-10">
+      <footer className="h-8 px-4 bg-primary text-primary-foreground flex justify-between items-center text-xs z-10">
             <span>Usuario: {user?.username || 'N/A'}</span>
             <span>Turno: #{shift?.id || 'N/A'}</span>
             <span>{time}</span>
