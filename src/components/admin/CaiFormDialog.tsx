@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -28,7 +27,7 @@ const formSchema = z.object({
   range_start: z.string().regex(rangeRegex, "El formato debe ser 000-000-00-00000000."),
   range_end: z.string().regex(rangeRegex, "El formato debe ser 000-000-00-00000000."),
   issue_date: z.date({ required_error: 'La fecha de emisión es requerida' }),
-  expiration_date: z.date({ required_error: 'La fecha de expiración es requerida' }),
+  expiration_date: z.date({ required_error: 'La fecha límite de emisión es requerida' }),
   status: z.enum(['active', 'pending', 'inactive'], {
     required_error: "Debe seleccionar un estado.",
   }),
@@ -40,9 +39,6 @@ const formSchema = z.object({
 }, {
     message: "El rango final debe ser mayor que el rango inicial.",
     path: ["range_end"],
-}).refine(data => data.expiration_date > data.issue_date, {
-    message: "La fecha de expiración debe ser posterior a la fecha de emisión.",
-    path: ["expiration_date"],
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -201,7 +197,7 @@ export default function CaiFormDialog({ isOpen, onOpenChange, caiRecord, onRecor
                 name="expiration_date"
                 render={({ field }) => (
                     <FormItem className="flex flex-col">
-                        <FormLabel>Fecha de Expiración</FormLabel>
+                        <FormLabel>Fecha Límite de Emisión</FormLabel>
                         <Popover>
                             <PopoverTrigger asChild>
                             <FormControl>
@@ -226,6 +222,9 @@ export default function CaiFormDialog({ isOpen, onOpenChange, caiRecord, onRecor
                                 mode="single"
                                 selected={field.value}
                                 onSelect={field.onChange}
+                                disabled={(date) =>
+                                 date < new Date("1900-01-01")
+                                }
                                 initialFocus
                             />
                             </PopoverContent>
