@@ -71,6 +71,8 @@ export interface Order {
     created_at: string;
     items: OrderItem[];
     order_type: 'dine-in' | 'take-away' | 'delivery';
+    invoice_number: string | null;
+    cai_id: number | null;
 }
 
 export interface PaymentMethod {
@@ -119,4 +121,11 @@ export interface Supplier {
     phone: string | null;
     address: string | null;
     email: string | null;
+}
+
+export interface FullInvoiceData {
+    order: Order;
+    companyInfo: CompanyInfo;
+    caiRecord: CaiRecord;
+    customer: Customer | null;
 }

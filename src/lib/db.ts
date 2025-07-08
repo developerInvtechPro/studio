@@ -73,7 +73,7 @@ let dbPromise: Promise<Database> | null = null;
 
 const initializeDb = async () => {
     const db = await open({
-        filename: './cafe_central_v7.db',
+        filename: './cafe_central_v8.db',
         driver: sqlite3.verbose().Database,
     });
 
@@ -130,6 +130,17 @@ const initializeDb = async () => {
             phone TEXT,
             address TEXT
         );
+        
+        CREATE TABLE IF NOT EXISTS cai_records (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            cai TEXT NOT NULL,
+            range_start TEXT NOT NULL,
+            range_end TEXT NOT NULL,
+            current_invoice_number TEXT,
+            issue_date TEXT NOT NULL,
+            expiration_date TEXT NOT NULL,
+            status TEXT NOT NULL -- active, pending, inactive
+        );
 
         CREATE TABLE IF NOT EXISTS orders (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -145,9 +156,12 @@ const initializeDb = async () => {
             status TEXT NOT NULL,
             created_at TEXT NOT NULL,
             order_type TEXT NOT NULL DEFAULT 'dine-in',
+            invoice_number TEXT,
+            cai_id INTEGER,
             FOREIGN KEY (shift_id) REFERENCES shifts(id),
             FOREIGN KEY (table_id) REFERENCES tables(id),
-            FOREIGN KEY (customer_id) REFERENCES customers(id)
+            FOREIGN KEY (customer_id) REFERENCES customers(id),
+            FOREIGN KEY (cai_id) REFERENCES cai_records(id)
         );
 
         CREATE TABLE IF NOT EXISTS order_items (
@@ -184,17 +198,6 @@ const initializeDb = async () => {
             phone TEXT,
             email TEXT,
             website TEXT
-        );
-
-        CREATE TABLE IF NOT EXISTS cai_records (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            cai TEXT NOT NULL,
-            range_start TEXT NOT NULL,
-            range_end TEXT NOT NULL,
-            current_invoice_number TEXT,
-            issue_date TEXT NOT NULL,
-            expiration_date TEXT NOT NULL,
-            status TEXT NOT NULL -- active, pending, inactive
         );
         
         CREATE TABLE IF NOT EXISTS suppliers (
@@ -240,7 +243,7 @@ const initializeDb = async () => {
         }
         await pmStmt.finalize();
 
-        await db.run("INSERT OR IGNORE INTO company_info (id, name) VALUES (1, 'Mi Café')");
+        await db.run("INSERT OR IGNORE INTO company_info (id, name, rtn, address, phone, email) VALUES (1, 'Café Central', '08019000123456', 'Colonia Las Acacias, Tegucigalpa, Honduras', '+504 2222-3333', 'info@cafecentral.hn')");
     }
     
     return db;

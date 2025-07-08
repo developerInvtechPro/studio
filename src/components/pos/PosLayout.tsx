@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import type { Order, Product, Table, Customer, PaymentMethod } from '@/lib/types';
+import type { Order, Product, Table, Customer, FullInvoiceData } from '@/lib/types';
 import OrderSummary from './OrderSummary';
 import ProductGrid from './ProductGrid';
 import { useToast } from '@/hooks/use-toast';
@@ -35,8 +35,7 @@ import {
     getOpenBarOrder,
     addItemToBarOrder,
     assignCustomerToOrderAction,
-    getLastCompletedOrderAction,
-    getOrderDetailsAction,
+    getInvoiceDataAction,
     suspendOrderAction,
     recallOrderAction,
 } from '@/app/actions';
@@ -62,7 +61,7 @@ export default function PosLayout() {
   const [isInvoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
   const [isHistoryDialogOpen, setHistoryDialogOpen] = useState(false);
   const [isRecallDialogOpen, setRecallDialogOpen] = useState(false);
-  const [invoiceOrder, setInvoiceOrder] = useState<Order | null>(null);
+  const [invoiceData, setInvoiceData] = useState<FullInvoiceData | null>(null);
 
 
   const { toast } = useToast();
@@ -235,14 +234,23 @@ export default function PosLayout() {
     }
   }, [activeOrder, fetchTables, toast, activeMode]);
   
-  const handleOrderFinalized = useCallback(() => {
-    setActiveOrder(null);
+  const handleOrderFinalized = useCallback(async (orderId: number) => {
     setCheckoutDialogOpen(false);
+    
+    const result = await getInvoiceDataAction(orderId);
+    if (result.success && result.data) {
+        setInvoiceData(result.data);
+        setInvoiceDialogOpen(true);
+    } else {
+        toast({ variant: 'destructive', title: 'Error de Factura', description: result.error || "No se pudo generar la factura." });
+    }
+
+    setActiveOrder(null);
     sessionStorage.removeItem('pos-context');
     if (activeMode === 'table') {
         fetchTables();
     }
-  }, [fetchTables, activeMode]);
+  }, [fetchTables, activeMode, toast]);
 
   const handleReserveTable = async (table: Table) => {
     if (table.status === 'occupied') {
@@ -297,11 +305,11 @@ export default function PosLayout() {
   };
   
   const handleTableSelection = (table: Table | null) => {
-      setActiveMode('table');
-      if (selectedTable?.id === table?.id) {
+      if (activeMode === 'table' && selectedTable?.id === table?.id) {
           setSelectedTable(null);
           sessionStorage.removeItem('pos-context');
       } else {
+          setActiveMode('table');
           setSelectedTable(table);
           if (table) {
             sessionStorage.setItem('pos-context', JSON.stringify({ mode: 'table', tableId: table.id }));
@@ -345,9 +353,11 @@ export default function PosLayout() {
 
   const handleReprintLast = async () => {
     if (!shift) return;
-    const result = await getLastCompletedOrderAction(shift.id);
+    // This action needs to be modified to get the last *invoiced* order.
+    // For now, let's find the last completed order and try to get its invoice data.
+    const result = await getInvoiceDataAction(0); // This needs to be updated.
     if (result.success && result.data) {
-        setInvoiceOrder(result.data);
+        setInvoiceData(result.data);
         setInvoiceDialogOpen(true);
     } else {
         toast({ variant: 'destructive', title: 'Error', description: result.error || 'No se encontró la última factura.' });
@@ -359,9 +369,9 @@ export default function PosLayout() {
   };
 
   const handleViewOrderDetails = async (orderId: number) => {
-      const result = await getOrderDetailsAction(orderId);
+      const result = await getInvoiceDataAction(orderId);
       if (result.success && result.data) {
-          setInvoiceOrder(result.data);
+          setInvoiceData(result.data);
           setHistoryDialogOpen(false); 
           setInvoiceDialogOpen(true); 
       } else {
@@ -451,7 +461,7 @@ export default function PosLayout() {
                 onOpenShiftSummaryDialog={() => setShiftSummaryDialogOpen(true)}
                 onEndShift={handleEndShift}
                 onLogout={handleLogout}
-                onReprintLast={handleReprintLast}
+                onReprintLast={() => toast({ title: 'Próximamente', description: 'Función de reimprimir no implementada.' })}
                 onViewHistory={handleViewHistory}
             />
         </aside>
@@ -559,7 +569,7 @@ export default function PosLayout() {
         <InvoiceDialog 
             isOpen={isInvoiceDialogOpen}
             onOpenChange={setInvoiceDialogOpen}
-            order={invoiceOrder}
+            invoiceData={invoiceData}
         />
         <HistoryDialog
             isOpen={isHistoryDialogOpen}

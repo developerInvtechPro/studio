@@ -3,7 +3,7 @@
 
 import type { SmartUpsellInput } from '@/ai/flows/smart-upsell';
 import type { BudgetTrackingInput } from '@/ai/flows/ai-powered-budget-and-profitability-tracking';
-import type { User, Category, Product, Table, Shift, Order, OrderItem, Customer, PaymentMethod, CompletedOrderInfo, CompanyInfo, Supplier, Payment, CaiRecord } from '@/lib/types';
+import type { User, Category, Product, Table, Shift, Order, OrderItem, Customer, PaymentMethod, CompletedOrderInfo, CompanyInfo, Supplier, Payment, CaiRecord, FullInvoiceData } from '@/lib/types';
 import { getDbConnection } from '@/lib/db';
 import { getSmartUpsellRecommendations } from '@/ai/flows/smart-upsell';
 import { aiPoweredBudgetAndProfitabilityTracking } from '@/ai/flows/ai-powered-budget-and-profitability-tracking';
@@ -14,7 +14,10 @@ const TAX_RATE = 0.15; // ISV Honduras
 // #region Helper Functions
 
 async function getOrderFromDb(db: Database, orderId: number): Promise<Order | null> {
-    const orderHeader = await db.get<Omit<Order, 'items'>>('SELECT * FROM orders WHERE id = ?', orderId);
+    const orderHeader = await db.get<Omit<Order, 'items' | 'invoice_number' | 'cai_id' > & { invoice_number: string | null, cai_id: number | null }>(
+        'SELECT * FROM orders WHERE id = ?', 
+        orderId
+    );
     if (!orderHeader) return null;
 
     const orderItemsResult = await db.all<any[]>(
@@ -56,7 +59,12 @@ async function getOrderFromDb(db: Database, orderId: number): Promise<Order | nu
         }
     }));
 
-    return { ...orderHeader, items };
+    return { 
+        ...orderHeader, 
+        invoice_number: orderHeader.invoice_number,
+        cai_id: orderHeader.cai_id,
+        items 
+    };
 }
 
 
@@ -64,24 +72,89 @@ async function recalculateOrderTotals(db: Database, orderId: number): Promise<vo
   const order = await db.get<{ discount_percentage: number }>("SELECT discount_percentage FROM orders WHERE id = ?", orderId);
   const discountPercentage = order?.discount_percentage || 0;
 
-  const result = await db.get<{ subtotal: number }>(
-    'SELECT SUM(price_at_time * quantity) as subtotal FROM order_items WHERE order_id = ?',
-    orderId
+  const orderItems = await db.all<{ price_at_time: number, quantity: number, taxRate: number }>(
+      `SELECT oi.price_at_time, oi.quantity, p.tax_rate as taxRate
+       FROM order_items oi
+       JOIN products p ON oi.product_id = p.id
+       WHERE oi.order_id = ?`,
+      orderId
   );
-  const subtotal = result?.subtotal || 0;
+
+  const subtotal = orderItems.reduce((acc, item) => acc + (item.price_at_time * item.quantity), 0);
   const discountAmount = subtotal * (discountPercentage / 100);
-  const taxableAmount = subtotal - discountAmount;
-  const tax = taxableAmount * TAX_RATE;
-  const total = taxableAmount + tax;
+
+  const subtotalAfterDiscount = subtotal - discountAmount;
+  
+  // Honduras ISV calculation is on the discounted price
+  const taxAmount = orderItems.reduce((acc, item) => {
+      const itemSubtotal = item.price_at_time * item.quantity;
+      const itemDiscount = itemSubtotal * (discountPercentage / 100);
+      const itemBasePrice = itemSubtotal - itemDiscount;
+      return acc + (itemBasePrice * (item.taxRate / 100));
+  }, 0);
+
+
+  const total = subtotalAfterDiscount + taxAmount;
 
   await db.run(
     'UPDATE orders SET subtotal = ?, tax_amount = ?, total_amount = ?, discount_amount = ? WHERE id = ?',
     subtotal.toFixed(2),
-    tax.toFixed(2),
+    taxAmount.toFixed(2),
     total.toFixed(2),
     discountAmount.toFixed(2),
     orderId
   );
+}
+
+
+async function findValidCaiAndIncrement(db: Database): Promise<{ caiRecord: CaiRecord, invoiceNumber: string } | { error: string }> {
+    let activeCai = await db.get<CaiRecord>("SELECT * FROM cai_records WHERE status = 'active'");
+
+    const now = new Date();
+    
+    // Check if active CAI is expired by date
+    if (activeCai && new Date(activeCai.expiration_date) < now) {
+        await db.run("UPDATE cai_records SET status = 'inactive' WHERE id = ?", activeCai.id);
+        activeCai = undefined;
+    }
+
+    // Check if active CAI is expired by range
+    if (activeCai && activeCai.current_invoice_number) {
+        const current = BigInt(activeCai.current_invoice_number.replace(/-/g, ''));
+        const end = BigInt(activeCai.range_end.replace(/-/g, ''));
+        if (current >= end) {
+            await db.run("UPDATE cai_records SET status = 'inactive' WHERE id = ?", activeCai.id);
+            activeCai = undefined;
+        }
+    }
+    
+    // If no active CAI, try to activate a pending one
+    if (!activeCai) {
+        const pendingCai = await db.get<CaiRecord>("SELECT * FROM cai_records WHERE status = 'pending' AND date(expiration_date) >= date('now') ORDER BY issue_date LIMIT 1");
+        if (pendingCai) {
+            await db.run("UPDATE cai_records SET status = 'active' WHERE id = ?", pendingCai.id);
+            activeCai = await db.get<CaiRecord>("SELECT * FROM cai_records WHERE id = ?", pendingCai.id);
+        } else {
+            return { error: "No hay un CAI activo y válido para facturar. Por favor, configure uno en el panel de administración." };
+        }
+    }
+
+    if (!activeCai) {
+         return { error: "No se pudo encontrar o activar un CAI válido." };
+    }
+
+    // Increment invoice number
+    const currentInvoice = activeCai.current_invoice_number || activeCai.range_start;
+    const parts = currentInvoice.split('-');
+    const numPartStr = parts[parts.length - 1];
+    const nextNum = BigInt(numPartStr) + 1n;
+    const newNumPart = nextNum.toString().padStart(numPartStr.length, '0');
+    parts[parts.length - 1] = newNumPart;
+    const newInvoiceNumber = parts.join('-');
+
+    await db.run("UPDATE cai_records SET current_invoice_number = ? WHERE id = ?", newInvoiceNumber, activeCai.id);
+
+    return { caiRecord: activeCai, invoiceNumber: currentInvoice };
 }
 
 // #endregion
@@ -467,8 +540,12 @@ export async function processPaymentAction(orderId: number, payments: Payment[])
             throw new Error("Orden no encontrada o ya ha sido procesada.");
         }
 
+        const invoiceDetails = await findValidCaiAndIncrement(db);
+        if ('error' in invoiceDetails) {
+            throw new Error(invoiceDetails.error);
+        }
+
         const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
-        // Use a small tolerance (epsilon) for floating point comparison
         if ((order.total_amount - totalPaid) > 0.001) {
             throw new Error(`El pago (L ${totalPaid.toFixed(2)}) es insuficiente para cubrir el total de la orden (L ${order.total_amount.toFixed(2)}).`);
         }
@@ -479,8 +556,8 @@ export async function processPaymentAction(orderId: number, payments: Payment[])
             await paymentStmt.run(orderId, payment.paymentMethodId, payment.amount, now);
         }
         await paymentStmt.finalize();
-
-        await db.run("UPDATE orders SET status = 'completed' WHERE id = ?", orderId);
+        
+        await db.run("UPDATE orders SET status = 'completed', invoice_number = ?, cai_id = ? WHERE id = ?", invoiceDetails.invoiceNumber, invoiceDetails.caiRecord.id, orderId);
 
         if (order.table_id) {
             await db.run("UPDATE tables SET status = 'available' WHERE id = ?", order.table_id);
@@ -685,7 +762,7 @@ export async function getPaymentMethodsAction(): Promise<PaymentMethod[]> {
 }
 // #endregion
 
-// #region Reporting Actions
+// #region Reporting & Invoicing Actions
 interface ShiftSummary {
     totalSales: number;
     totalOrders: number;
@@ -744,7 +821,7 @@ export async function getCompletedOrdersForShiftAction(shiftId: number): Promise
     try {
         const db = await getDbConnection();
         const orders = await db.all<CompletedOrderInfo[]>(
-            `SELECT id, customer_name, total_amount, created_at
+            `SELECT id, customer_name, total_amount, created_at, invoice_number
              FROM orders
              WHERE shift_id = ? AND status = 'completed'
              ORDER BY created_at DESC`,
@@ -774,41 +851,30 @@ export async function getSuspendedOrdersAction(shiftId: number): Promise<{ succe
     }
 }
 
-export async function getOrderDetailsAction(orderId: number): Promise<{ success: boolean; data?: Order; error?: string }> {
+export async function getInvoiceDataAction(orderId: number): Promise<{ success: boolean; data?: FullInvoiceData; error?: string }> {
     try {
         const db = await getDbConnection();
         const order = await getOrderFromDb(db, orderId);
         if (!order) {
             return { success: false, error: "Orden no encontrada." };
         }
-        return { success: true, data: order };
-    } catch (error: any) {
-        console.error("Failed to get order details:", error);
-        return { success: false, error: "No se pudo obtener el detalle de la orden." };
-    }
-}
-
-export async function getLastCompletedOrderAction(shiftId: number): Promise<{ success: boolean; data?: Order; error?: string }> {
-    try {
-        const db = await getDbConnection();
-        const lastOrderHeader = await db.get<{ id: number }>(
-            "SELECT id FROM orders WHERE shift_id = ? AND status = 'completed' ORDER BY created_at DESC LIMIT 1",
-            shiftId
-        );
-        
-        if (!lastOrderHeader) {
-            return { success: false, error: "No se encontró la última orden completada." };
-        }
-        
-        const order = await getOrderFromDb(db, lastOrderHeader.id);
-        if (!order) {
-             return { success: false, error: "No se pudo cargar el detalle de la última orden." };
+        if (!order.cai_id) {
+            return { success: false, error: "La orden no tiene una factura fiscal asociada." };
         }
 
-        return { success: true, data: order };
+        const companyInfo = await db.get<CompanyInfo>("SELECT * FROM company_info WHERE id = 1");
+        if (!companyInfo) throw new Error("Company Info not found");
+        
+        const caiRecord = await db.get<CaiRecord>("SELECT * FROM cai_records WHERE id = ?", order.cai_id);
+        if (!caiRecord) throw new Error("CAI Record not found");
+
+        const customer = order.customer_id ? await db.get<Customer>("SELECT * FROM customers WHERE id = ?", order.customer_id) : null;
+        
+        return { success: true, data: { order, companyInfo, caiRecord, customer } };
+
     } catch (error: any) {
-        console.error("Failed to get last completed order:", error);
-        return { success: false, error: "No se pudo obtener la última orden." };
+        console.error("Failed to get invoice data:", error);
+        return { success: false, error: error.message || "No se pudo obtener la información de la factura." };
     }
 }
 // #endregion

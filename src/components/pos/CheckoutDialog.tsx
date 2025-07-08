@@ -17,7 +17,7 @@ interface CheckoutDialogProps {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
   order: Order | null;
-  onOrderFinalized: () => void;
+  onOrderFinalized: (orderId: number) => void;
 }
 
 export default function CheckoutDialog({ isOpen, onOpenChange, order, onOrderFinalized }: CheckoutDialogProps) {
@@ -91,7 +91,7 @@ export default function CheckoutDialog({ isOpen, onOpenChange, order, onOrderFin
     const result = await processPaymentAction(order.id, payments);
     if (result.success) {
         toast({ title: '¡Venta completada!', description: `El cambio es de L ${changeAmount.toFixed(2)}.` });
-        onOrderFinalized();
+        onOrderFinalized(order.id);
     } else {
         toast({ variant: 'destructive', title: 'Error', description: result.error });
     }
