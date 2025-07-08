@@ -375,7 +375,7 @@ export async function addItemToOrder(tableId: number, shiftId: number, productId
                 const orderResult = await db.run(
                     `INSERT INTO orders (shift_id, table_id, customer_name, subtotal, tax_amount, total_amount, status, created_at, discount_percentage, discount_amount, order_type)
                      VALUES (?, ?, ?, 0, 0, 0, 'pending', ?, 0, 0, 'dine-in')`,
-                    shiftId, tableId, `Mesa ${tableId}`, new Date().toISOString()
+                    shiftId, tableId, 'CONSUMIDOR FINAL', new Date().toISOString()
                 );
                 const orderId = orderResult.lastID!;
                 order = await db.get<Omit<Order, 'items'>>('SELECT * FROM orders WHERE id = ?', orderId);
@@ -429,7 +429,7 @@ export async function addItemToBarOrder(shiftId: number, productId: number): Pro
                 const orderResult = await db.run(
                     `INSERT INTO orders (shift_id, table_id, customer_id, customer_name, subtotal, tax_amount, total_amount, status, created_at, discount_percentage, discount_amount, order_type)
                      VALUES (?, NULL, NULL, ?, 0, 0, 0, 'pending', ?, 0, 0, 'take-away')`,
-                    shiftId, `Para Llevar`, new Date().toISOString()
+                    shiftId, 'CONSUMIDOR FINAL', new Date().toISOString()
                 );
                 const orderId = orderResult.lastID!;
                 order = await db.get<Omit<Order, 'items'>>('SELECT * FROM orders WHERE id = ?', orderId);
@@ -612,8 +612,9 @@ export async function transferOrderAction(orderId: number, oldTableId: number, n
             await db.run('ROLLBACK');
             return { success: false, error: "La mesa de destino no está disponible." };
         }
-
-        await db.run("UPDATE orders SET table_id = ?, customer_name = ? WHERE id = ?", newTableId, `Mesa ${newTableId}`, orderId);
+        
+        // Only update the table_id. Customer name should not change on transfer.
+        await db.run("UPDATE orders SET table_id = ? WHERE id = ?", newTableId, orderId);
         await db.run("UPDATE tables SET status = 'occupied' WHERE id = ?", newTableId);
         await db.run("UPDATE tables SET status = 'available' WHERE id = ?", oldTableId);
         
@@ -881,7 +882,7 @@ export async function getInvoiceDataAction(orderId: number): Promise<{ success: 
 export async function getLastInvoiceForShiftAction(shiftId: number): Promise<{ success: boolean; data?: FullInvoiceData; error?: string }> {
     try {
         const db = await getDbConnection();
-        const lastOrder = await db.get<Order>(
+        const lastOrder = await db.get<{ id: number }>(
             `SELECT id
              FROM orders
              WHERE shift_id = ? AND status = 'completed' AND invoice_number IS NOT NULL

@@ -110,7 +110,8 @@ export default function OrderSummary({
           return 'Consumos';
       }
 
-      if (order?.customer_name && order.customer_name !== `Mesa ${selectedTable?.id}` && order.customer_name !== 'Para Llevar') {
+      // If a specific customer is assigned (via customer_id), show their name.
+      if (order?.customer_id && order.customer_name) {
         return (
             <div className='flex items-center gap-2'>
                 <span>{title}</span>
