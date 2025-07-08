@@ -18,6 +18,7 @@ En este modelo, cada computadora ejecuta su propia copia completa de la aplicaci
 
 *   Node.js (versión 18 o superior)
 *   NPM (normalmente se instala con Node.js)
+*   Git (para poder actualizar la aplicación)
 
 ### Pasos de Instalación por Máquina
 
@@ -27,7 +28,12 @@ Existen dos maneras de instalarlo: una automática (recomendada) y una manual.
 
 Hemos creado un script que hace todo el trabajo pesado por ti.
 
-1.  **Copiar el Proyecto:** Copia toda la carpeta del proyecto BCPOS a la nueva computadora.
+1.  **Clonar el Proyecto:** Abre una terminal (CMD o PowerShell) en el lugar donde quieras guardar el proyecto y ejecuta:
+    ```bash
+    git clone <URL_DEL_REPOSITORIO_DE_GITHUB>
+    ```
+    Luego, navega dentro de la carpeta que se acaba de crear.
+
 2.  **Ejecutar el Script:** Haz clic derecho en el archivo `setup_windows.bat` y selecciona **"Ejecutar como administrador"**.
 3.  **¡Listo!** El script se encargará de instalar las dependencias, compilar la aplicación para producción, configurar PM2 para que se inicie automáticamente con Windows y arrancar el servidor de BCPOS.
 
@@ -37,17 +43,16 @@ Una vez que termine, puedes acceder al POS abriendo un navegador web (como Googl
 
 Si prefieres hacerlo paso a paso o el script falla por alguna razón.
 
-1.  **Copiar el Proyecto:** Copia toda la carpeta del proyecto BCPOS a la nueva computadora.
-2.  **Abrir una Terminal:** Navega hasta la carpeta del proyecto en la línea de comandos o terminal.
-3.  **Instalar Dependencias:** Ejecuta el siguiente comando para instalar todas las librerías necesarias.
+1.  **Clonar el Proyecto:** Igual que en el paso 1 de la opción automática.
+2.  **Instalar Dependencias:** Ejecuta el siguiente comando para instalar todas las librerías necesarias.
     ```bash
     npm install
     ```
-4.  **Compilar la Aplicación:** Ejecuta este comando para optimizar el código para producción. **Este paso es obligatorio antes de iniciar el servidor.**
+3.  **Compilar la Aplicación:** Ejecuta este comando para optimizar el código para producción. **Este paso es obligatorio antes de iniciar el servidor.**
     ```bash
     npm run build
     ```
-5.  **Iniciar el Servidor (con PM2 para auto-arranque):** Sigue los pasos de la sección "Hacer que la Aplicación se Inicie Automáticamente" a continuación.
+4.  **Iniciar el Servidor (con PM2 para auto-arranque):** Sigue los pasos de la sección "Hacer que la Aplicación se Inicie Automáticamente" a continuación.
 
 ---
 
@@ -113,6 +118,47 @@ En resumen, PM2 no solo inicia la aplicación, sino que la **vigila y la gestion
 
 ---
 
+## Cómo Actualizar la Aplicación
+
+Una vez que el sistema está instalado y funcionando, querrás una forma fácil de aplicar las actualizaciones y nuevas funcionalidades que se desarrollen.
+
+**Requisito Previo:** Para que esto funcione, la instalación inicial del proyecto en la computadora debe haberse realizado usando `git clone` y no simplemente copiando la carpeta. Si solo copiaste la carpeta, no podrás usar `git` para actualizar.
+
+### Opción A: Actualización Automática con Script (Recomendado para Windows)
+
+Para hacer el proceso de actualización lo más simple posible, he creado un script `update_windows.bat` que hace todo el trabajo por ti.
+
+1.  **Ejecutar el Script:** Simplemente haz doble clic en el archivo `update_windows.bat` (no es necesario ejecutarlo como administrador esta vez, a menos que tengas problemas de permisos en la carpeta).
+2.  **¡Listo!** El script se encargará de:
+    *   Descargar los últimos cambios del código (`git pull`).
+    *   Instalar cualquier nueva dependencia (`npm install`).
+    *   Recompilar la aplicación con los nuevos cambios (`npm run build`).
+    *   Reiniciar la aplicación en `pm2` sin tiempo de inactividad perceptible (`pm2 restart bcpos`).
+
+### Opción B: Actualización Manual (Paso a Paso)
+
+Si prefieres hacerlo manually o necesitas resolver algún problema (como un conflicto en `git`), estos son los pasos que sigue el script:
+
+1.  **Abrir una Terminal:** Navega a la carpeta del proyecto en la línea de comandos (CMD o PowerShell).
+2.  **Descargar Cambios:**
+    ```bash
+    git pull
+    ```
+3.  **Instalar Dependencias:**
+    ```bash
+    npm install
+    ```
+4.  **Compilar la Aplicación:**
+    ```bash
+    npm run build
+    ```
+5.  **Reiniciar el Servidor:**
+    ```bash
+    pm2 restart bcpos
+    ```
+    
+---
+
 ## Modelo 2: Despliegue Centralizado (Datos Compartidos)
 
 Este es el modelo profesional y estándar para un entorno donde múltiples terminales (cajas) deben compartir la misma información en tiempo real (ver las mismas órdenes abiertas, compartir inventario, etc.).
@@ -153,4 +199,3 @@ Este proceso es similar al anterior, pero en lugar de usar un servidor local, se
     *   En cada terminal, abre un navegador y ve a la URL pública. Todos se conectarán al mismo sistema.
 
 Este modelo es más complejo de configurar al principio, pero es la arquitectura correcta, escalable y robusta para un sistema de punto de venta real.
-
