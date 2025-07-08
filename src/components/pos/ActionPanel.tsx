@@ -3,9 +3,7 @@
 
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Settings, Calendar, Ban, Search, Tag, Receipt, PauseCircle, LogOut, Lock, Move, ShoppingCart, FileText } from 'lucide-react';
-import { useSession } from '@/context/SessionContext';
-import { useRouter } from 'next/navigation';
+import { Settings, Calendar, Ban, Search, Tag, Receipt, PauseCircle, LogOut, Lock, Move, ShoppingCart } from 'lucide-react';
 import type { Table } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
@@ -22,7 +20,6 @@ interface ActionPanelProps {
     onOpenRemoveItemDialog: () => void;
     onOpenSearchProductDialog: () => void;
     onOpenDiscountDialog: () => void;
-    onOpenShiftSummaryDialog: () => void;
     hasOpenOrder: boolean;
     onBarOrderClick: () => void;
     isBarOrderActive: boolean;
@@ -39,26 +36,12 @@ export default function ActionPanel({
     onOpenRemoveItemDialog,
     onOpenSearchProductDialog,
     onOpenDiscountDialog,
-    onOpenShiftSummaryDialog,
     hasOpenOrder,
     onBarOrderClick,
     isBarOrderActive,
 }: ActionPanelProps) {
-  const { logout, endShift } = useSession();
-  const router = useRouter();
   const { toast } = useToast();
 
-  const handleLogout = async () => {
-    await logout();
-    router.push('/login');
-  };
-
-  const handleEndShift = async () => {
-    await endShift();
-    await logout();
-    router.push('/login');
-  };
-  
   const handleClearOrder = () => {
     if (!hasOpenOrder) {
         toast({
@@ -87,7 +70,6 @@ export default function ActionPanel({
   const mainActions = [
     { label: 'SUSPENDER VENTA', icon: PauseCircle, onClick: handleNotImplemented, disabled: !hasOpenOrder },
     { label: 'ANULAR PRODUCTO', icon: Ban, onClick: onOpenRemoveItemDialog, disabled: !hasOpenOrder },
-    { label: 'RESUMEN DE TURNO', icon: FileText, onClick: onOpenShiftSummaryDialog, disabled: false },
     { label: 'BUSCAR PRODUCTO', icon: Search, onClick: onOpenSearchProductDialog, disabled: false },
     { label: 'DESCUENTO', icon: Tag, onClick: onOpenDiscountDialog, disabled: !hasOpenOrder },
   ];
@@ -151,17 +133,6 @@ export default function ActionPanel({
           )}
         </div>
       </ScrollArea>
-       <div className="mt-auto flex flex-col gap-2">
-        <Button onClick={handleEndShift} variant="ghost" className="w-full justify-start hover:bg-sidebar-accent">
-          <Lock className="mr-2 h-4 w-4" /> Finalizar Turno
-        </Button>
-         <Button onClick={handleLogout} variant="ghost" className="w-full justify-start text-destructive/80 hover:bg-destructive/10 hover:text-destructive">
-            <LogOut className="mr-2 h-4 w-4" /> Cerrar Sesión
-        </Button>
-        <Button variant="ghost" className="w-full justify-start hover:bg-sidebar-accent">
-          <Settings className="mr-2 h-4 w-4" /> Admin
-        </Button>
-       </div>
     </aside>
   );
 }

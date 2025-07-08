@@ -2,13 +2,13 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import type { Order, Product, Table, Customer, PaymentMethod } from '@/lib/types';
 import OrderSummary from './OrderSummary';
 import ProductGrid from './ProductGrid';
 import { useToast } from '@/hooks/use-toast';
 import ActionPanel from './ActionPanel';
 import { Button } from '@/components/ui/button';
-import { Home } from 'lucide-react';
 import { useSession } from '@/context/SessionContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import DiscountDialog from './DiscountDialog';
@@ -17,6 +17,7 @@ import RemoveItemDialog from './RemoveItemDialog';
 import CheckoutDialog from './CheckoutDialog';
 import CustomerSelectionDialog from './CustomerSelectionDialog';
 import ShiftSummaryDialog from './ShiftSummaryDialog';
+import SystemActions from './SystemActions';
 
 import { 
     getTablesAction,
@@ -56,7 +57,8 @@ export default function PosLayout() {
 
   const { toast } = useToast();
   const [time, setTime] = useState('');
-  const { user, shift } = useSession();
+  const { user, shift, logout, endShift } = useSession();
+  const router = useRouter();
 
   const fetchTables = useCallback(async () => {
     try {
@@ -285,6 +287,17 @@ export default function PosLayout() {
     setLoadingOrder(false);
   };
 
+   const handleLogout = async () => {
+    await logout();
+    router.push('/login');
+  };
+
+  const handleEndShift = async () => {
+    await endShift();
+    await logout();
+    router.push('/login');
+  };
+
   return (
     <div className="h-screen w-screen flex flex-col font-sans text-sm">
       <div className="flex flex-1 overflow-hidden">
@@ -302,7 +315,6 @@ export default function PosLayout() {
             onOpenRemoveItemDialog={() => setRemoveItemDialogOpen(true)}
             onBarOrderClick={handleBarOrderClick}
             isBarOrderActive={activeMode === 'bar'}
-            onOpenShiftSummaryDialog={() => setShiftSummaryDialogOpen(true)}
         />
         
         <main className="flex-1 flex flex-col p-2 md:p-4 gap-4 bg-muted/30">
@@ -326,10 +338,11 @@ export default function PosLayout() {
 
         <aside className="w-[45%] max-w-[600px] p-2 md:p-4 flex flex-col gap-4 border-l bg-card">
             <ProductGrid onProductSelect={addProductToOrder} />
-             <Button variant="outline" className="mt-auto">
-                <Home className="mr-2 h-4 w-4"/>
-                HOME
-            </Button>
+            <SystemActions 
+                onOpenShiftSummaryDialog={() => setShiftSummaryDialogOpen(true)}
+                onEndShift={handleEndShift}
+                onLogout={handleLogout}
+            />
         </aside>
       </div>
       <footer className="h-8 px-4 bg-blue-700 text-white flex justify-between items-center text-xs z-10">
