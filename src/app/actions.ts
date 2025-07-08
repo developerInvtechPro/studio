@@ -624,3 +624,55 @@ export async function getPaymentMethodsAction(): Promise<PaymentMethod[]> {
     }
 }
 // #endregion
+
+// #region Reporting Actions
+interface ShiftSummary {
+    totalSales: number;
+    totalOrders: number;
+    salesByPaymentMethod: { name: string, total: number }[];
+    startingCash: number;
+    cashSales: number;
+    expectedCash: number;
+}
+
+export async function getShiftSummaryAction(shiftId: number): Promise<{ success: boolean; data?: ShiftSummary; error?: string }> {
+    try {
+        const db = await getDbConnection();
+
+        const shift = await db.get<Shift>("SELECT starting_cash FROM shifts WHERE id = ?", shiftId);
+        if (!shift) {
+            return { success: false, error: "Turno no encontrado." };
+        }
+
+        const orders = await db.all<Order>("SELECT id, total_amount FROM orders WHERE shift_id = ? AND status = 'completed'", shiftId);
+        const totalSales = orders.reduce((sum, o) => sum + o.total_amount, 0);
+        const totalOrders = orders.length;
+
+        const payments = await db.all<{ name: string, total: number }>(
+            `SELECT pm.name, SUM(p.amount) as total
+             FROM payments p
+             JOIN payment_methods pm ON p.payment_method_id = pm.id
+             JOIN orders o ON p.order_id = o.id
+             WHERE o.shift_id = ? AND o.status = 'completed'
+             GROUP BY pm.name`,
+            shiftId
+        );
+
+        const cashSales = payments.find(p => p.name.toLowerCase() === 'efectivo')?.total || 0;
+        
+        const summary: ShiftSummary = {
+            totalSales,
+            totalOrders,
+            salesByPaymentMethod: payments,
+            startingCash: shift.startingCash,
+            cashSales,
+            expectedCash: shift.startingCash + cashSales
+        };
+        
+        return { success: true, data: summary };
+    } catch (error: any) {
+        console.error("Failed to get shift summary:", error);
+        return { success: false, error: "No se pudo generar el resumen del turno." };
+    }
+}
+// #endregion

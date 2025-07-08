@@ -16,6 +16,7 @@ import SearchProductDialog from './SearchProductDialog';
 import RemoveItemDialog from './RemoveItemDialog';
 import CheckoutDialog from './CheckoutDialog';
 import CustomerSelectionDialog from './CustomerSelectionDialog';
+import ShiftSummaryDialog from './ShiftSummaryDialog';
 
 import { 
     getTablesAction,
@@ -50,6 +51,8 @@ export default function PosLayout() {
   const [isRemoveItemDialogOpen, setRemoveItemDialogOpen] = useState(false);
   const [isCheckoutDialogOpen, setCheckoutDialogOpen] = useState(false);
   const [isCustomerDialogOpen, setCustomerDialogOpen] = useState(false);
+  const [isShiftSummaryDialogOpen, setShiftSummaryDialogOpen] = useState(false);
+
 
   const { toast } = useToast();
   const [time, setTime] = useState('');
@@ -299,6 +302,7 @@ export default function PosLayout() {
             onOpenRemoveItemDialog={() => setRemoveItemDialogOpen(true)}
             onBarOrderClick={handleBarOrderClick}
             isBarOrderActive={activeMode === 'bar'}
+            onOpenShiftSummaryDialog={() => setShiftSummaryDialogOpen(true)}
         />
         
         <main className="flex-1 flex flex-col p-2 md:p-4 gap-4 bg-muted/30">
@@ -330,6 +334,7 @@ export default function PosLayout() {
       </div>
       <footer className="h-8 px-4 bg-blue-700 text-white flex justify-between items-center text-xs z-10">
             <span>Usuario: {user?.username || 'N/A'}</span>
+            <span>Turno: #{shift?.id || 'N/A'}</span>
             <span>{time}</span>
       </footer>
 
@@ -421,6 +426,11 @@ export default function PosLayout() {
             isOpen={isCustomerDialogOpen}
             onOpenChange={setCustomerDialogOpen}
             onCustomerSelect={handleAssignCustomer}
+        />
+        <ShiftSummaryDialog
+            isOpen={isShiftSummaryDialogOpen}
+            onOpenChange={setShiftSummaryDialogOpen}
+            shift={shift}
         />
     </div>
   );

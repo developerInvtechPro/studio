@@ -72,7 +72,7 @@ let dbPromise: Promise<Database> | null = null;
 
 const initializeDb = async () => {
     const db = await open({
-        filename: './cafe_central_v4.db',
+        filename: './cafe_central_v5.db',
         driver: sqlite3.verbose().Database,
     });
 

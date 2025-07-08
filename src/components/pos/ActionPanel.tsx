@@ -3,7 +3,7 @@
 
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Settings, Calendar, Ban, Search, Tag, Receipt, PauseCircle, LogOut, Lock, Move, ShoppingCart } from 'lucide-react';
+import { Settings, Calendar, Ban, Search, Tag, Receipt, PauseCircle, LogOut, Lock, Move, ShoppingCart, FileText } from 'lucide-react';
 import { useSession } from '@/context/SessionContext';
 import { useRouter } from 'next/navigation';
 import type { Table } from '@/lib/types';
@@ -22,6 +22,7 @@ interface ActionPanelProps {
     onOpenRemoveItemDialog: () => void;
     onOpenSearchProductDialog: () => void;
     onOpenDiscountDialog: () => void;
+    onOpenShiftSummaryDialog: () => void;
     hasOpenOrder: boolean;
     onBarOrderClick: () => void;
     isBarOrderActive: boolean;
@@ -38,6 +39,7 @@ export default function ActionPanel({
     onOpenRemoveItemDialog,
     onOpenSearchProductDialog,
     onOpenDiscountDialog,
+    onOpenShiftSummaryDialog,
     hasOpenOrder,
     onBarOrderClick,
     isBarOrderActive,
@@ -53,6 +55,7 @@ export default function ActionPanel({
 
   const handleEndShift = async () => {
     await endShift();
+    await logout();
     router.push('/login');
   };
   
@@ -84,7 +87,7 @@ export default function ActionPanel({
   const mainActions = [
     { label: 'SUSPENDER VENTA', icon: PauseCircle, onClick: handleNotImplemented, disabled: !hasOpenOrder },
     { label: 'ANULAR PRODUCTO', icon: Ban, onClick: onOpenRemoveItemDialog, disabled: !hasOpenOrder },
-    { label: 'REIMPRIMIR RECIBO', icon: Receipt, onClick: handleNotImplemented, disabled: false },
+    { label: 'RESUMEN DE TURNO', icon: FileText, onClick: onOpenShiftSummaryDialog, disabled: false },
     { label: 'BUSCAR PRODUCTO', icon: Search, onClick: onOpenSearchProductDialog, disabled: false },
     { label: 'DESCUENTO', icon: Tag, onClick: onOpenDiscountDialog, disabled: !hasOpenOrder },
   ];
