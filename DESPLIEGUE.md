@@ -89,6 +89,8 @@ Para evitar tener que iniciar el servidor manualmente cada vez que se reinicia l
 
 ¡Listo! A partir de ahora, cada vez que la computadora se reinicie, el servidor de BCPOS se iniciará solo. El usuario solo necesitará abrir el navegador en `http://localhost:3000`.
 
+**Nota importante:** Si detienes la aplicación manualmente con `npm run pm2:stop`, esta permanecerá detenida durante la sesión. El reinicio automático solo se aplicará la próxima vez que se encienda el equipo.
+
 **Comandos Útiles de PM2:**
 
 *   `pm2 list`: Muestra el estado de la aplicación `bcpos`.
