@@ -1,7 +1,7 @@
 
 import sqlite3 from 'sqlite3';
 import { open, Database } from 'sqlite';
-import type { User, Category, Product, Table } from './types';
+import type { User, Category, Product, Table, Customer, PaymentMethod } from './types';
 
 // The default data to seed the database with on first run.
 const defaultUsers: Pick<User, 'username' | 'password'>[] = [
@@ -62,12 +62,17 @@ const defaultTables: Table[] = Array.from({ length: 12 }, (_, i) => ({
   status: 'available',
 }));
 
+const defaultPaymentMethods: Omit<PaymentMethod, 'id'>[] = [
+    { name: 'Efectivo', type: 'cash' },
+    { name: 'Tarjeta', type: 'card' },
+];
+
 
 let dbPromise: Promise<Database> | null = null;
 
 const initializeDb = async () => {
     const db = await open({
-        filename: './cafe_central_v3.db',
+        filename: './cafe_central_v4.db',
         driver: sqlite3.verbose().Database,
     });
 
@@ -112,11 +117,20 @@ const initializeDb = async () => {
             is_active BOOLEAN NOT NULL DEFAULT 0,
             FOREIGN KEY (user_id) REFERENCES users(id)
         );
+        
+        CREATE TABLE IF NOT EXISTS customers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            rtn TEXT UNIQUE,
+            phone TEXT,
+            address TEXT
+        );
 
         CREATE TABLE IF NOT EXISTS orders (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             shift_id INTEGER NOT NULL,
             table_id INTEGER,
+            customer_id INTEGER,
             customer_name TEXT,
             subtotal REAL NOT NULL,
             tax_amount REAL NOT NULL,
@@ -127,7 +141,8 @@ const initializeDb = async () => {
             created_at TEXT NOT NULL,
             order_type TEXT NOT NULL DEFAULT 'dine-in',
             FOREIGN KEY (shift_id) REFERENCES shifts(id),
-            FOREIGN KEY (table_id) REFERENCES tables(id)
+            FOREIGN KEY (table_id) REFERENCES tables(id),
+            FOREIGN KEY (customer_id) REFERENCES customers(id)
         );
 
         CREATE TABLE IF NOT EXISTS order_items (
@@ -136,8 +151,24 @@ const initializeDb = async () => {
             product_id INTEGER NOT NULL,
             quantity INTEGER NOT NULL,
             price_at_time REAL NOT NULL,
-            FOREIGN KEY (order_id) REFERENCES orders(id),
+            FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
             FOREIGN KEY (product_id) REFERENCES products(id)
+        );
+
+        CREATE TABLE IF NOT EXISTS payment_methods (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            type TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS payments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            order_id INTEGER NOT NULL,
+            payment_method_id INTEGER NOT NULL,
+            amount REAL NOT NULL,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY (order_id) REFERENCES orders(id),
+            FOREIGN KEY (payment_method_id) REFERENCES payment_methods(id)
         );
     `);
     
@@ -168,6 +199,12 @@ const initializeDb = async () => {
             await tableStmt.run(table.id, table.name, table.status);
         }
         await tableStmt.finalize();
+
+        const pmStmt = await db.prepare('INSERT INTO payment_methods (name, type) VALUES (?, ?)');
+        for (const pm of defaultPaymentMethods) {
+            await pmStmt.run(pm.name, pm.type);
+        }
+        await pmStmt.finalize();
     }
     
     return db;

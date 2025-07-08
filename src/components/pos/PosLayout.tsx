@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import type { Order, Product, Table } from '@/lib/types';
+import type { Order, Product, Table, Customer, PaymentMethod } from '@/lib/types';
 import OrderSummary from './OrderSummary';
 import ProductGrid from './ProductGrid';
 import { useToast } from '@/hooks/use-toast';
@@ -14,6 +14,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import DiscountDialog from './DiscountDialog';
 import SearchProductDialog from './SearchProductDialog';
 import RemoveItemDialog from './RemoveItemDialog';
+import CheckoutDialog from './CheckoutDialog';
+import CustomerSelectionDialog from './CustomerSelectionDialog';
+
 import { 
     getTablesAction,
     getOpenOrderForTable,
@@ -26,6 +29,8 @@ import {
     applyDiscountAction,
     getOpenBarOrder,
     addItemToBarOrder,
+    assignCustomerToOrderAction,
+    processPaymentAction
 } from '@/app/actions';
 
 export default function PosLayout() {
@@ -43,7 +48,8 @@ export default function PosLayout() {
   const [isDiscountDialogOpen, setDiscountDialogOpen] = useState(false);
   const [isSearchProductDialogOpen, setSearchProductDialogOpen] = useState(false);
   const [isRemoveItemDialogOpen, setRemoveItemDialogOpen] = useState(false);
-
+  const [isCheckoutDialogOpen, setCheckoutDialogOpen] = useState(false);
+  const [isCustomerDialogOpen, setCustomerDialogOpen] = useState(false);
 
   const { toast } = useToast();
   const [time, setTime] = useState('');
@@ -188,6 +194,7 @@ export default function PosLayout() {
   
   const handleOrderFinalized = useCallback(() => {
     setActiveOrder(null);
+    setCheckoutDialogOpen(false);
     if (activeMode === 'table') {
         fetchTables();
     }
@@ -258,6 +265,23 @@ export default function PosLayout() {
       setSelectedTable(null);
   }
 
+  const handleAssignCustomer = async (customer: Customer) => {
+    if (!activeOrder) {
+        toast({ variant: 'destructive', title: 'Error', description: 'No hay una orden activa para asignarle un cliente.' });
+        return;
+    }
+    setLoadingOrder(true);
+    const result = await assignCustomerToOrderAction(activeOrder.id, customer.id);
+    if (result.success && result.data) {
+        setActiveOrder(result.data);
+        toast({ title: 'Cliente Asignado', description: `${customer.name} ha sido asignado a la orden.` });
+        setCustomerDialogOpen(false);
+    } else {
+        toast({ variant: 'destructive', title: 'Error', description: result.error || 'No se pudo asignar el cliente.' });
+    }
+    setLoadingOrder(false);
+  };
+
   return (
     <div className="h-screen w-screen flex flex-col font-sans text-sm">
       <div className="flex flex-1 overflow-hidden">
@@ -280,7 +304,7 @@ export default function PosLayout() {
         <main className="flex-1 flex flex-col p-2 md:p-4 gap-4 bg-muted/30">
             <div className="flex gap-2 flex-wrap">
                 <Button>CONSUMIDOR FINAL</Button>
-                <Button variant="outline">CLIENTE RTN</Button>
+                <Button variant="outline" onClick={() => setCustomerDialogOpen(true)} disabled={!activeOrder}>CLIENTE RTN</Button>
                 <Button variant="outline">CLIENTE CRÉDITO</Button>
                 <Button variant="outline">CLIENTE LEAL</Button>
             </div>
@@ -292,7 +316,7 @@ export default function PosLayout() {
                 shift={shift}
                 selectedTable={selectedTable}
                 activeMode={activeMode}
-                onOrderFinalized={handleOrderFinalized}
+                onFinalizeOrderClick={() => setCheckoutDialogOpen(true)}
             />
         </main>
 
@@ -387,7 +411,17 @@ export default function PosLayout() {
                 setRemoveItemDialogOpen(false);
             }}
         />
-
+        <CheckoutDialog
+            isOpen={isCheckoutDialogOpen}
+            onOpenChange={setCheckoutDialogOpen}
+            order={activeOrder}
+            onOrderFinalized={handleOrderFinalized}
+        />
+        <CustomerSelectionDialog
+            isOpen={isCustomerDialogOpen}
+            onOpenChange={setCustomerDialogOpen}
+            onCustomerSelect={handleAssignCustomer}
+        />
     </div>
   );
 }

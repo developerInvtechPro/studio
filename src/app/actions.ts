@@ -3,7 +3,7 @@
 
 import type { SmartUpsellInput } from '@/ai/flows/smart-upsell';
 import type { BudgetTrackingInput } from '@/ai/flows/ai-powered-budget-and-profitability-tracking';
-import type { User, Category, Product, Table, Shift, Order, OrderItem } from '@/lib/types';
+import type { User, Category, Product, Table, Shift, Order, OrderItem, Customer, PaymentMethod, Payment } from '@/lib/types';
 import { getDbConnection } from '@/lib/db';
 import { getSmartUpsellRecommendations } from '@/ai/flows/smart-upsell';
 import { aiPoweredBudgetAndProfitabilityTracking } from '@/ai/flows/ai-powered-budget-and-profitability-tracking';
@@ -78,6 +78,7 @@ async function recalculateOrderTotals(db: Database, orderId: number): Promise<vo
 
 // #endregion
 
+// #region AI Actions
 export async function getUpsellAction(input: SmartUpsellInput) {
   try {
     const result = await getSmartUpsellRecommendations(input);
@@ -97,7 +98,9 @@ export async function getBudgetAction(input: BudgetTrackingInput) {
     return { success: false, error: 'Failed to get budget insights.' };
   }
 }
+// #endregion
 
+// #region Auth & Shift Actions
 export async function loginAction(credentials: {username: string, password: string}): Promise<{ success: boolean; user?: Omit<User, 'password'>; error?: string }> {
   try {
     const db = await getDbConnection();
@@ -115,55 +118,6 @@ export async function loginAction(credentials: {username: string, password: stri
     return { success: false, error: 'Ocurrió un error en el servidor.' };
   }
 }
-
-export async function getCategoriesAction(): Promise<Category[]> {
-    try {
-        const db = await getDbConnection();
-        return db.all<Category[]>("SELECT id, name, icon_name as iconName FROM categories ORDER BY id");
-    } catch (error) {
-        console.error("Failed to get categories:", error);
-        return []; // Return empty array on error
-    }
-}
-
-export async function getProductsByCategoryAction(categoryId: number): Promise<Product[]> {
-    try {
-        const db = await getDbConnection();
-        return db.all<Product[]>(
-            "SELECT id, name, price, category_id as categoryId, image_url as imageUrl, image_hint as imageHint FROM products WHERE category_id = ?",
-            categoryId
-        );
-    } catch (error) {
-        console.error("Failed to get products by category:", error);
-        return [];
-    }
-}
-
-export async function searchProductsAction(query: string): Promise<Product[]> {
-    try {
-        const db = await getDbConnection();
-        if (!query) return [];
-        return db.all<Product[]>(
-            "SELECT id, name, price, category_id as categoryId, image_url as imageUrl, image_hint as imageHint FROM products WHERE LOWER(name) LIKE LOWER(?)",
-            `%${query}%`
-        );
-    } catch (error) {
-        console.error("Failed to search products:", error);
-        return [];
-    }
-}
-
-
-export async function getTablesAction(): Promise<Table[]> {
-    try {
-        const db = await getDbConnection();
-        return db.all<Table[]>("SELECT id, name, status FROM tables ORDER BY id");
-    } catch (error) {
-        console.error("Failed to get tables:", error);
-        return [];
-    }
-}
-
 
 export async function getActiveShiftAction(userId: number): Promise<Shift | null> {
     try {
@@ -217,7 +171,71 @@ export async function endShiftAction(shiftId: number): Promise<void> {
         throw new Error("Could not end shift.");
     }
 }
+// #endregion
 
+// #region Product & Category Actions
+export async function getCategoriesAction(): Promise<Category[]> {
+    try {
+        const db = await getDbConnection();
+        return db.all<Category[]>("SELECT id, name, icon_name as iconName FROM categories ORDER BY id");
+    } catch (error) {
+        console.error("Failed to get categories:", error);
+        return [];
+    }
+}
+
+export async function getProductsByCategoryAction(categoryId: number): Promise<Product[]> {
+    try {
+        const db = await getDbConnection();
+        return db.all<Product[]>(
+            "SELECT id, name, price, category_id as categoryId, image_url as imageUrl, image_hint as imageHint FROM products WHERE category_id = ?",
+            categoryId
+        );
+    } catch (error) {
+        console.error("Failed to get products by category:", error);
+        return [];
+    }
+}
+
+export async function searchProductsAction(query: string): Promise<Product[]> {
+    try {
+        const db = await getDbConnection();
+        if (!query) return [];
+        return db.all<Product[]>(
+            "SELECT id, name, price, category_id as categoryId, image_url as imageUrl, image_hint as imageHint FROM products WHERE LOWER(name) LIKE LOWER(?)",
+            `%${query}%`
+        );
+    } catch (error) {
+        console.error("Failed to search products:", error);
+        return [];
+    }
+}
+// #endregion
+
+// #region Table Actions
+export async function getTablesAction(): Promise<Table[]> {
+    try {
+        const db = await getDbConnection();
+        return db.all<Table[]>("SELECT id, name, status FROM tables ORDER BY id");
+    } catch (error) {
+        console.error("Failed to get tables:", error);
+        return [];
+    }
+}
+
+export async function updateTableStatusAction(tableId: number, status: 'available' | 'occupied' | 'reserved'): Promise<{ success: boolean; error?: string }> {
+    try {
+        const db = await getDbConnection();
+        await db.run("UPDATE tables SET status = ? WHERE id = ?", status, tableId);
+        return { success: true };
+    } catch (error: any) {
+        console.error('Failed to update table status:', error);
+        return { success: false, error: 'No se pudo actualizar el estado de la mesa.' };
+    }
+}
+// #endregion
+
+// #region Order Actions
 export async function getOpenOrderForTable(tableId: number): Promise<Order | null> {
     try {
         const db = await getDbConnection();
@@ -237,7 +255,6 @@ export async function getOpenOrderForTable(tableId: number): Promise<Order | nul
     }
 }
 
-
 export async function getOpenBarOrder(shiftId: number): Promise<Order | null> {
     try {
         const db = await getDbConnection();
@@ -256,7 +273,6 @@ export async function getOpenBarOrder(shiftId: number): Promise<Order | null> {
         return null;
     }
 }
-
 
 export async function addItemToOrder(tableId: number, shiftId: number, productId: number): Promise<{ success: boolean; data?: Order; error?: string }> {
     try {
@@ -322,8 +338,8 @@ export async function addItemToBarOrder(shiftId: number, productId: number): Pro
             
             if (!order) {
                 const orderResult = await db.run(
-                    `INSERT INTO orders (shift_id, table_id, customer_name, subtotal, tax_amount, total_amount, status, created_at, discount_percentage, discount_amount, order_type)
-                     VALUES (?, NULL, ?, 0, 0, 0, 'pending', ?, 0, 0, 'take-away')`,
+                    `INSERT INTO orders (shift_id, table_id, customer_id, customer_name, subtotal, tax_amount, total_amount, status, created_at, discount_percentage, discount_amount, order_type)
+                     VALUES (?, NULL, NULL, ?, 0, 0, 0, 'pending', ?, 0, 0, 'take-away')`,
                     shiftId, `Para Llevar`, new Date().toISOString()
                 );
                 const orderId = orderResult.lastID!;
@@ -401,17 +417,16 @@ export async function removeItemFromOrder(orderItemId: number): Promise<{ succes
     return updateOrderItemQuantity(orderItemId, 0);
 }
 
-
 export async function cancelOrder(orderId: number): Promise<{ success: boolean; error?: string }> {
     try {
         const db = await getDbConnection();
         await db.run('BEGIN TRANSACTION');
         try {
-            const order = await db.get("SELECT table_id FROM orders WHERE id = ?", orderId);
+            const order = await db.get<{ table_id: number }>("SELECT table_id FROM orders WHERE id = ?", orderId);
             if (order && order.table_id) {
                 await db.run("UPDATE tables SET status = 'available' WHERE id = ?", order.table_id);
             }
-            await db.run("DELETE FROM order_items WHERE order_id = ?", orderId);
+            // Use ON DELETE CASCADE for order_items
             await db.run("DELETE FROM orders WHERE id = ?", orderId);
             await db.run('COMMIT');
             return { success: true };
@@ -425,33 +440,44 @@ export async function cancelOrder(orderId: number): Promise<{ success: boolean; 
     }
 }
 
-
-export async function finalizeOrder(orderId: number): Promise<{ success: boolean; orderId?: number; error?: string }> {
+export async function processPaymentAction(orderId: number, payments: Payment[]): Promise<{ success: boolean; error?: string }> {
   try {
     const db = await getDbConnection();
     await db.run('BEGIN TRANSACTION');
 
     try {
-        const order = await db.get("SELECT table_id FROM orders WHERE id = ?", orderId);
+        const order = await db.get<Order>("SELECT total_amount, table_id FROM orders WHERE id = ? AND status = 'pending'", orderId);
+        if (!order) {
+            throw new Error("Orden no encontrada o ya ha sido procesada.");
+        }
 
-        // Mark order as completed
+        const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
+        if (totalPaid < order.total_amount) {
+            throw new Error(`El pago (L ${totalPaid.toFixed(2)}) es insuficiente para cubrir el total de la orden (L ${order.total_amount.toFixed(2)}).`);
+        }
+
+        const paymentStmt = await db.prepare('INSERT INTO payments (order_id, payment_method_id, amount, created_at) VALUES (?, ?, ?, ?)');
+        const now = new Date().toISOString();
+        for (const payment of payments) {
+            await paymentStmt.run(orderId, payment.paymentMethodId, payment.amount, now);
+        }
+        await paymentStmt.finalize();
+
         await db.run("UPDATE orders SET status = 'completed' WHERE id = ?", orderId);
 
-        // Free up the table
-        if (order && order.table_id) {
+        if (order.table_id) {
             await db.run("UPDATE tables SET status = 'available' WHERE id = ?", order.table_id);
         }
 
         await db.run('COMMIT');
-
-        return { success: true, orderId: orderId };
+        return { success: true };
     } catch (innerError: any) {
         await db.run('ROLLBACK');
         throw innerError;
     }
   } catch (error: any) {
-    console.error('Failed to finalize order:', error);
-    return { success: false, error: 'No se pudo finalizar la orden.' };
+    console.error('Failed to process payment:', error);
+    return { success: false, error: error.message || 'No se pudo procesar el pago.' };
   }
 }
 
@@ -482,17 +508,6 @@ export async function applyDiscountAction(orderId: number, percentage: number): 
     }
 }
 
-export async function updateTableStatusAction(tableId: number, status: 'available' | 'occupied' | 'reserved'): Promise<{ success: boolean; error?: string }> {
-    try {
-        const db = await getDbConnection();
-        await db.run("UPDATE tables SET status = ? WHERE id = ?", status, tableId);
-        return { success: true };
-    } catch (error: any) {
-        console.error('Failed to update table status:', error);
-        return { success: false, error: 'No se pudo actualizar el estado de la mesa.' };
-    }
-}
-
 export async function transferOrderAction(orderId: number, oldTableId: number, newTableId: number): Promise<{ success: boolean; error?: string }> {
   try {
     const db = await getDbConnection();
@@ -519,3 +534,92 @@ export async function transferOrderAction(orderId: number, oldTableId: number, n
     return { success: false, error: "No se pudo trasladar la orden." };
   }
 }
+// #endregion
+
+// #region Customer Actions
+export async function searchCustomersAction(query: string): Promise<Customer[]> {
+  try {
+    const db = await getDbConnection();
+    if (!query) {
+        return db.all<Customer[]>("SELECT * FROM customers ORDER BY name LIMIT 20");
+    }
+    const searchTerm = `%${query.toLowerCase()}%`;
+    return db.all<Customer[]>(
+      "SELECT * FROM customers WHERE LOWER(name) LIKE ? OR LOWER(rtn) LIKE ? ORDER BY name",
+      searchTerm,
+      searchTerm
+    );
+  } catch (error) {
+    console.error("Failed to search customers:", error);
+    return [];
+  }
+}
+
+export async function createCustomerAction(customerData: Omit<Customer, 'id'>): Promise<{ success: boolean; data?: Customer; error?: string }> {
+    try {
+        const db = await getDbConnection();
+        const { name, rtn, phone, address } = customerData;
+
+        // Basic validation
+        if (!name || !rtn) {
+            return { success: false, error: "Nombre y RTN son requeridos." };
+        }
+
+        const result = await db.run(
+            "INSERT INTO customers (name, rtn, phone, address) VALUES (?, ?, ?, ?)",
+            name, rtn, phone, address
+        );
+        
+        const newCustomer: Customer = {
+            id: result.lastID!,
+            ...customerData,
+        };
+        return { success: true, data: newCustomer };
+    } catch (error: any) {
+        console.error("Failed to create customer:", error);
+        if (error.code === 'SQLITE_CONSTRAINT') {
+            return { success: false, error: "El RTN ya está registrado." };
+        }
+        return { success: false, error: error.message || "No se pudo crear el cliente." };
+    }
+}
+
+export async function assignCustomerToOrderAction(orderId: number, customerId: number): Promise<{ success: boolean; data?: Order; error?: string }> {
+    try {
+        const db = await getDbConnection();
+        await db.run('BEGIN TRANSACTION');
+        try {
+            const customer = await db.get<Customer>("SELECT * FROM customers WHERE id = ?", customerId);
+            if (!customer) {
+                throw new Error("Cliente no encontrado.");
+            }
+            
+            await db.run('UPDATE orders SET customer_id = ?, customer_name = ? WHERE id = ?', customerId, customer.name, orderId);
+            
+            const fullOrder = await getOrderFromDb(db, orderId);
+            if (!fullOrder) throw new Error("No se pudo recuperar la orden actualizada.");
+            
+            await db.run('COMMIT');
+            return { success: true, data: fullOrder };
+        } catch (innerError: any) {
+            await db.run('ROLLBACK');
+            throw innerError;
+        }
+    } catch (error: any) {
+        console.error("Failed to assign customer to order:", error);
+        return { success: false, error: error.message || "No se pudo asignar el cliente a la orden." };
+    }
+}
+// #endregion
+
+// #region Payment Actions
+export async function getPaymentMethodsAction(): Promise<PaymentMethod[]> {
+    try {
+        const db = await getDbConnection();
+        return db.all<PaymentMethod[]>("SELECT * FROM payment_methods ORDER BY id");
+    } catch (error) {
+        console.error("Failed to get payment methods:", error);
+        return [];
+    }
+}
+// #endregion

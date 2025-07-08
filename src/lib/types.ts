@@ -43,11 +43,20 @@ export interface Shift {
   isActive: boolean;
 }
 
+export interface Customer {
+  id: number;
+  name: string;
+  rtn: string | null;
+  phone: string | null;
+  address: string | null;
+}
+
 export interface Order {
     id: number;
     shift_id: number;
     table_id: number | null;
-    customer_name: string;
+    customer_id: number | null;
+    customer_name: string | null;
     subtotal: number;
     tax_amount: number;
     discount_percentage: number;
@@ -58,3 +67,14 @@ export interface Order {
     items: OrderItem[];
     order_type: 'dine-in' | 'take-away' | 'delivery';
 }
+
+export interface PaymentMethod {
+    id: number;
+    name: string;
+    type: 'cash' | 'card' | 'transfer' | 'other';
+}
+
+export type Payment = {
+    paymentMethodId: number;
+    amount: number;
+};

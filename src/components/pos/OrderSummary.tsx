@@ -7,9 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table as UiTable, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Plus, Minus, Trash2 } from 'lucide-react';
+import { Plus, Minus, Trash2, User } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { finalizeOrder } from '@/app/actions';
 import Spinner from '../ui/spinner';
 
 
@@ -21,7 +20,7 @@ interface OrderSummaryProps {
   activeMode: 'table' | 'bar';
   onUpdateQuantity: (orderItemId: number, newQuantity: number) => Promise<void>;
   onRemoveItem: (orderItemId: number) => Promise<void>;
-  onOrderFinalized: () => void;
+  onFinalizeOrderClick: () => void;
 }
 
 export default function OrderSummary({ 
@@ -32,26 +31,9 @@ export default function OrderSummary({
   activeMode,
   onUpdateQuantity,
   onRemoveItem,
-  onOrderFinalized,
+  onFinalizeOrderClick,
 }: OrderSummaryProps) {
-  const [loading, setLoading] = useState(false);
-  const { toast } = useToast();
   
-  const handleCobrar = async () => {
-    if (!order) return;
-
-    setLoading(true);
-    const result = await finalizeOrder(order.id);
-
-    if (result.success && result.orderId) {
-        toast({ title: '¡Venta completada!', description: `Orden #${result.orderId} ha sido finalizada.` });
-        onOrderFinalized();
-    } else {
-        toast({ variant: 'destructive', title: 'Error', description: result.error || 'No se pudo finalizar la orden.' });
-    }
-    setLoading(false);
-  };
-
   const renderContent = () => {
     if (isLoading) {
       return (
@@ -119,13 +101,27 @@ export default function OrderSummary({
   }
 
   const getTitle = () => {
+      let title: string;
       if (activeMode === 'bar') {
-          return 'Orden para Llevar';
+          title = 'Orden para Llevar';
+      } else if (selectedTable) {
+          title = `Consumos - ${selectedTable.name}`;
+      } else {
+          return 'Consumos';
       }
-      if (selectedTable) {
-          return `Consumos - ${selectedTable.name}`;
+
+      if (order?.customer_name && order.customer_name !== `Mesa ${selectedTable?.id}` && order.customer_name !== 'Para Llevar') {
+        return (
+            <div className='flex items-center gap-2'>
+                <span>{title}</span>
+                <span className='text-sm font-normal text-muted-foreground flex items-center gap-1'>
+                    (<User className="h-3 w-3"/> {order.customer_name})
+                </span>
+            </div>
+        )
       }
-      return 'Consumos';
+      
+      return title;
   }
 
   return (
@@ -164,8 +160,8 @@ export default function OrderSummary({
               <span>L {order.total_amount.toFixed(2)}</span>
             </div>
           </div>
-          <Button size="lg" className="w-full font-bold text-lg h-14 mt-2" onClick={handleCobrar} disabled={loading || !shift}>
-            {loading ? 'Procesando...' : 'COBRAR'}
+          <Button size="lg" className="w-full font-bold text-lg h-14 mt-2" onClick={onFinalizeOrderClick} disabled={isLoading || !shift}>
+            {isLoading ? 'Procesando...' : 'COBRAR'}
           </Button>
         </CardFooter>
       )}
