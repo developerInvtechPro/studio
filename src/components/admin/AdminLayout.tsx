@@ -13,6 +13,7 @@ const menuItems = [
   { href: '/admin/empresa', label: 'Empresa', icon: 'Building' },
   { href: '/admin/productos', label: 'Productos', icon: 'Package' },
   { href: '/admin/cai', label: 'CAI', icon: 'FileKey' },
+  { href: '/admin/medios-pago', label: 'Medios de Pago', icon: 'CreditCard' },
   { href: '/admin/proveedores', label: 'Proveedores', icon: 'Truck' },
   { href: '/admin/compras', label: 'Compras', icon: 'ShoppingCart' },
   { href: '/admin/usuarios', label: 'Usuarios', icon: 'Users' },

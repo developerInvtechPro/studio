@@ -3,7 +3,7 @@
 
 import type { SmartUpsellInput } from '@/ai/flows/smart-upsell';
 import type { BudgetTrackingInput } from '@/ai/flows/ai-powered-budget-and-profitability-tracking';
-import type { User, Category, Product, Table, Shift, Order, OrderItem, Customer, PaymentMethod, Payment, CompletedOrderInfo, CompanyInfo } from '@/lib/types';
+import type { User, Category, Product, Table, Shift, Order, OrderItem, Customer, PaymentMethod, CompletedOrderInfo, CompanyInfo, Supplier } from '@/lib/types';
 import { getDbConnection } from '@/lib/db';
 import { getSmartUpsellRecommendations } from '@/ai/flows/smart-upsell';
 import { aiPoweredBudgetAndProfitabilityTracking } from '@/ai/flows/ai-powered-budget-and-profitability-tracking';
@@ -849,4 +849,105 @@ export async function saveProductAction(product: Omit<Product, 'id'> & { id?: nu
 }
 
 
+// #endregion
+
+// #region Supplier Actions
+
+export async function getSuppliersAction(): Promise<Supplier[]> {
+    try {
+        const db = await getDbConnection();
+        return db.all<Supplier[]>("SELECT * FROM suppliers ORDER BY name");
+    } catch (error) {
+        console.error("Failed to get suppliers:", error);
+        return [];
+    }
+}
+
+export async function saveSupplierAction(supplier: Omit<Supplier, 'id'> & { id?: number }): Promise<{ success: boolean; data?: Supplier; error?: string }> {
+    try {
+        const db = await getDbConnection();
+        const { id, name, rtn, phone, address, email } = supplier;
+
+        if (!name) {
+            return { success: false, error: "El nombre es requerido." };
+        }
+
+        let lastId = id;
+
+        if (id) {
+            await db.run(
+                `UPDATE suppliers SET name = ?, rtn = ?, phone = ?, address = ?, email = ? WHERE id = ?`,
+                name, rtn, phone, address, email, id
+            );
+        } else {
+            const result = await db.run(
+                `INSERT INTO suppliers (name, rtn, phone, address, email) VALUES (?, ?, ?, ?, ?)`,
+                name, rtn, phone, address, email
+            );
+            lastId = result.lastID!;
+        }
+
+        if (!lastId) {
+            return { success: false, error: 'Could not determine supplier ID after save.' };
+        }
+
+        const savedSupplier = await db.get<Supplier>("SELECT * FROM suppliers WHERE id = ?", lastId);
+
+        if (!savedSupplier) {
+            return { success: false, error: 'Could not retrieve supplier after saving.' };
+        }
+        
+        return { success: true, data: savedSupplier };
+
+    } catch (error: any) {
+        console.error("Failed to save supplier:", error);
+        return { success: false, error: "No se pudo guardar el proveedor." };
+    }
+}
+
+// #endregion
+
+// #region Payment Method Admin Actions
+
+export async function savePaymentMethodAction(method: Omit<PaymentMethod, 'id'> & { id?: number }): Promise<{ success: boolean; data?: PaymentMethod; error?: string }> {
+    try {
+        const db = await getDbConnection();
+        const { id, name, type } = method;
+
+        if (!name || !type) {
+            return { success: false, error: "Nombre y tipo son requeridos." };
+        }
+
+        let lastId = id;
+
+        if (id) {
+            await db.run(
+                `UPDATE payment_methods SET name = ?, type = ? WHERE id = ?`,
+                name, type, id
+            );
+        } else {
+            const result = await db.run(
+                `INSERT INTO payment_methods (name, type) VALUES (?, ?)`,
+                name, type
+            );
+            lastId = result.lastID!;
+        }
+
+        if (!lastId) {
+            return { success: false, error: 'Could not determine payment method ID after save.' };
+        }
+
+        const savedMethod = await db.get<PaymentMethod>("SELECT * FROM payment_methods WHERE id = ?", lastId);
+
+        if (!savedMethod) {
+            return { success: false, error: 'Could not retrieve payment method after saving.' };
+        }
+        
+        return { success: true, data: savedMethod };
+
+    } catch (error: any) {
+        console.error("Failed to save payment method:", error);
+        return { success: false, error: "No se pudo guardar el medio de pago." };
+    }
+}
 // #endregion
