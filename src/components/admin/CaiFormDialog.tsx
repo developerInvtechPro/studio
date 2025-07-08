@@ -51,6 +51,9 @@ interface CaiFormDialogProps {
 
 export default function CaiFormDialog({ isOpen, onOpenChange, caiRecord, onRecordSaved }: CaiFormDialogProps) {
   const [loading, setLoading] = useState(false);
+  const [issueDatePopoverOpen, setIssueDatePopoverOpen] = useState(false);
+  const [expirationDatePopoverOpen, setExpirationDatePopoverOpen] = useState(false);
+
   const { toast } = useToast();
 
   const form = useForm<FormValues>({
@@ -156,7 +159,7 @@ export default function CaiFormDialog({ isOpen, onOpenChange, caiRecord, onRecor
                 render={({ field }) => (
                     <FormItem className="flex flex-col">
                         <FormLabel>Fecha de Emisión</FormLabel>
-                        <Popover>
+                        <Popover open={issueDatePopoverOpen} onOpenChange={setIssueDatePopoverOpen}>
                             <PopoverTrigger asChild>
                             <FormControl>
                                 <Button
@@ -179,7 +182,10 @@ export default function CaiFormDialog({ isOpen, onOpenChange, caiRecord, onRecor
                             <Calendar
                                 mode="single"
                                 selected={field.value}
-                                onSelect={field.onChange}
+                                onSelect={(date) => {
+                                    field.onChange(date);
+                                    setIssueDatePopoverOpen(false);
+                                }}
                                 initialFocus
                             />
                             </PopoverContent>
@@ -194,7 +200,7 @@ export default function CaiFormDialog({ isOpen, onOpenChange, caiRecord, onRecor
                 render={({ field }) => (
                     <FormItem className="flex flex-col">
                         <FormLabel>Fecha Límite de Emisión</FormLabel>
-                        <Popover>
+                        <Popover open={expirationDatePopoverOpen} onOpenChange={setExpirationDatePopoverOpen}>
                             <PopoverTrigger asChild>
                             <FormControl>
                                 <Button
@@ -217,7 +223,10 @@ export default function CaiFormDialog({ isOpen, onOpenChange, caiRecord, onRecor
                             <Calendar
                                 mode="single"
                                 selected={field.value}
-                                onSelect={field.onChange}
+                                onSelect={(date) => {
+                                    field.onChange(date);
+                                    setExpirationDatePopoverOpen(false);
+                                }}
                                 initialFocus
                             />
                             </PopoverContent>
