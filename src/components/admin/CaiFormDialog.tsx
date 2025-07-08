@@ -51,9 +51,6 @@ interface CaiFormDialogProps {
 
 export default function CaiFormDialog({ isOpen, onOpenChange, caiRecord, onRecordSaved }: CaiFormDialogProps) {
   const [loading, setLoading] = useState(false);
-  const [issueDatePopoverOpen, setIssueDatePopoverOpen] = useState(false);
-  const [expirationDatePopoverOpen, setExpirationDatePopoverOpen] = useState(false);
-
   const { toast } = useToast();
 
   const form = useForm<FormValues>({
@@ -67,8 +64,8 @@ export default function CaiFormDialog({ isOpen, onOpenChange, caiRecord, onRecor
           cai: caiRecord.cai,
           range_start: caiRecord.range_start,
           range_end: caiRecord.range_end,
-          issue_date: parseISO(caiRecord.issue_date),
-          expiration_date: parseISO(caiRecord.expiration_date),
+          issue_date: caiRecord.issue_date ? parseISO(caiRecord.issue_date) : new Date(),
+          expiration_date: caiRecord.expiration_date ? parseISO(caiRecord.expiration_date) : new Date(),
           status: caiRecord.status,
         });
       } else {
@@ -76,7 +73,7 @@ export default function CaiFormDialog({ isOpen, onOpenChange, caiRecord, onRecor
           cai: '',
           range_start: '',
           range_end: '',
-          issue_date: new Date(),
+          issue_date: undefined,
           expiration_date: undefined,
           status: 'pending',
         });
@@ -154,53 +151,49 @@ export default function CaiFormDialog({ isOpen, onOpenChange, caiRecord, onRecor
             </div>
              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
-                control={form.control}
-                name="issue_date"
-                render={({ field }) => (
+                  control={form.control}
+                  name="issue_date"
+                  render={({ field }) => (
                     <FormItem className="flex flex-col">
-                        <FormLabel>Fecha de Emisión</FormLabel>
-                        <Popover open={issueDatePopoverOpen} onOpenChange={setIssueDatePopoverOpen}>
-                            <PopoverTrigger asChild>
-                            <FormControl>
-                                <Button
-                                variant={"outline"}
-                                className={cn(
-                                    "pl-3 text-left font-normal",
-                                    !field.value && "text-muted-foreground"
-                                )}
-                                >
-                                {field.value ? (
-                                    format(field.value, "PPP")
-                                ) : (
-                                    <span>Seleccione una fecha</span>
-                                )}
-                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                </Button>
-                            </FormControl>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar
-                                mode="single"
-                                selected={field.value}
-                                onSelect={(date) => {
-                                    field.onChange(date);
-                                    setIssueDatePopoverOpen(false);
-                                }}
-                                initialFocus
-                            />
-                            </PopoverContent>
-                        </Popover>
-                        <FormMessage />
+                      <FormLabel>Fecha de Emisión</FormLabel>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant={"outline"}
+                              className={cn(
+                                "pl-3 text-left font-normal",
+                                !field.value && "text-muted-foreground"
+                              )}
+                            >
+                              {field.value ? (
+                                format(field.value, "PPP")
+                              ) : (
+                                <span>Seleccione una fecha</span>
+                              )}
+                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={field.value}
+                            onSelect={field.onChange}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <FormMessage />
                     </FormItem>
-                )}
+                  )}
                 />
                 <FormField
-                control={form.control}
-                name="expiration_date"
-                render={({ field }) => (
+                  control={form.control}
+                  name="expiration_date"
+                  render={({ field }) => (
                     <FormItem className="flex flex-col">
                         <FormLabel>Fecha Límite de Emisión</FormLabel>
-                        <Popover open={expirationDatePopoverOpen} onOpenChange={setExpirationDatePopoverOpen}>
+                        <Popover>
                             <PopoverTrigger asChild>
                             <FormControl>
                                 <Button
@@ -223,17 +216,13 @@ export default function CaiFormDialog({ isOpen, onOpenChange, caiRecord, onRecor
                             <Calendar
                                 mode="single"
                                 selected={field.value}
-                                onSelect={(date) => {
-                                    field.onChange(date);
-                                    setExpirationDatePopoverOpen(false);
-                                }}
-                                initialFocus
+                                onSelect={field.onChange}
                             />
                             </PopoverContent>
                         </Popover>
                         <FormMessage />
                     </FormItem>
-                )}
+                  )}
                 />
             </div>
 
