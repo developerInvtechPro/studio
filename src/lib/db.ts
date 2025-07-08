@@ -1,7 +1,7 @@
 
 import sqlite3 from 'sqlite3';
 import { open, Database } from 'sqlite';
-import type { User, Category, Product, Table, Customer, PaymentMethod } from './types';
+import type { User, Category, Product, Table, Customer, PaymentMethod, CompanyInfo } from './types';
 
 // The default data to seed the database with on first run.
 const defaultUsers: Pick<User, 'username' | 'password'>[] = [
@@ -29,7 +29,7 @@ const defaultCategories = [
   { id: 16, name: 'Vegan', iconName: 'Vegan' },
 ];
 
-const defaultProducts: Omit<Product, 'icon'>[] = [
+const defaultProducts: Omit<Product, 'icon' | 'unitOfMeasurePurchase' | 'unitOfMeasureSale' | 'isActive' | 'taxRate' >[] = [
   { id: 1, name: 'Espresso', price: 2.5, categoryId: 1, imageUrl: 'https://placehold.co/200x200.png', imageHint: 'espresso shot' },
   { id: 2, name: 'Latte', price: 3.5, categoryId: 1, imageUrl: 'https://placehold.co/200x200.png', imageHint: 'latte art' },
   { id: 3, name: 'Cappuccino', price: 3.5, categoryId: 1, imageUrl: 'https://placehold.co/200x200.png', imageHint: 'cappuccino foam' },
@@ -56,6 +56,7 @@ const defaultProducts: Omit<Product, 'icon'>[] = [
   { id: 41, name: 'Vegan Wrap', price: 7.0, categoryId: 16, imageUrl: 'https://placehold.co/200x200.png', imageHint: 'vegan wrap' },
 ];
 
+
 const defaultTables: Table[] = Array.from({ length: 12 }, (_, i) => ({
   id: i + 1,
   name: `Mesa ${i + 1}`,
@@ -72,7 +73,7 @@ let dbPromise: Promise<Database> | null = null;
 
 const initializeDb = async () => {
     const db = await open({
-        filename: './cafe_central_v5.db',
+        filename: './cafe_central_v6.db',
         driver: sqlite3.verbose().Database,
     });
 
@@ -92,12 +93,16 @@ const initializeDb = async () => {
         );
 
         CREATE TABLE IF NOT EXISTS products (
-            id INTEGER PRIMARY KEY,
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
             price REAL NOT NULL,
             category_id INTEGER NOT NULL,
             image_url TEXT,
             image_hint TEXT,
+            unit_of_measure_sale TEXT,
+            unit_of_measure_purchase TEXT,
+            is_active BOOLEAN NOT NULL DEFAULT 1,
+            tax_rate INTEGER NOT NULL DEFAULT 15,
             FOREIGN KEY (category_id) REFERENCES categories(id)
         );
 
@@ -170,9 +175,38 @@ const initializeDb = async () => {
             FOREIGN KEY (order_id) REFERENCES orders(id),
             FOREIGN KEY (payment_method_id) REFERENCES payment_methods(id)
         );
+
+        CREATE TABLE IF NOT EXISTS company_info (
+            id INTEGER PRIMARY KEY,
+            name TEXT,
+            rtn TEXT,
+            address TEXT,
+            phone TEXT,
+            email TEXT,
+            website TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS cai_records (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            cai TEXT NOT NULL,
+            range_start INTEGER NOT NULL,
+            range_end INTEGER NOT NULL,
+            current_invoice_number INTEGER,
+            issue_date TEXT NOT NULL,
+            expiration_date TEXT NOT NULL,
+            status TEXT NOT NULL -- active, pending, inactive
+        );
+        
+        CREATE TABLE IF NOT EXISTS suppliers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            rtn TEXT,
+            phone TEXT,
+            address TEXT,
+            email TEXT
+        );
     `);
     
-    // Seed database if empty
     const usersCount = await db.get('SELECT COUNT(*) as count FROM users');
     if (usersCount && usersCount.count === 0) {
         console.log('Seeding database with default data...');
@@ -188,9 +222,9 @@ const initializeDb = async () => {
         }
         await catStmt.finalize();
 
-        const prodStmt = await db.prepare('INSERT INTO products (id, name, price, category_id, image_url, image_hint) VALUES (?, ?, ?, ?, ?, ?)');
+        const prodStmt = await db.prepare('INSERT INTO products (id, name, price, category_id, image_url, image_hint, unit_of_measure_sale, tax_rate) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
         for (const prod of defaultProducts) {
-            await prodStmt.run(prod.id, prod.name, prod.price, prod.categoryId, prod.imageUrl, prod.imageHint);
+            await prodStmt.run(prod.id, prod.name, prod.price, prod.categoryId, prod.imageUrl, prod.imageHint, 'Unidad', 15);
         }
         await prodStmt.finalize();
 
@@ -205,6 +239,8 @@ const initializeDb = async () => {
             await pmStmt.run(pm.name, pm.type);
         }
         await pmStmt.finalize();
+
+        await db.run("INSERT OR IGNORE INTO company_info (id, name) VALUES (1, 'Mi Café')");
     }
     
     return db;

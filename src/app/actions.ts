@@ -3,7 +3,7 @@
 
 import type { SmartUpsellInput } from '@/ai/flows/smart-upsell';
 import type { BudgetTrackingInput } from '@/ai/flows/ai-powered-budget-and-profitability-tracking';
-import type { User, Category, Product, Table, Shift, Order, OrderItem, Customer, PaymentMethod, Payment, CompletedOrderInfo } from '@/lib/types';
+import type { User, Category, Product, Table, Shift, Order, OrderItem, Customer, PaymentMethod, Payment, CompletedOrderInfo, CompanyInfo } from '@/lib/types';
 import { getDbConnection } from '@/lib/db';
 import { getSmartUpsellRecommendations } from '@/ai/flows/smart-upsell';
 import { aiPoweredBudgetAndProfitabilityTracking } from '@/ai/flows/ai-powered-budget-and-profitability-tracking';
@@ -27,7 +27,11 @@ async function getOrderFromDb(db: Database, orderId: number): Promise<Order | nu
             p.price,
             p.category_id as categoryId,
             p.image_url as imageUrl,
-            p.image_hint as imageHint
+            p.image_hint as imageHint,
+            p.unit_of_measure_sale as unitOfMeasureSale,
+            p.unit_of_measure_purchase as unitOfMeasurePurchase,
+            p.is_active as isActive,
+            p.tax_rate as taxRate
         FROM order_items oi
         JOIN products p ON oi.product_id = p.id
         WHERE oi.order_id = ?`,
@@ -45,6 +49,10 @@ async function getOrderFromDb(db: Database, orderId: number): Promise<Order | nu
             categoryId: item.categoryId,
             imageUrl: item.imageUrl,
             imageHint: item.imageHint,
+            unitOfMeasureSale: item.unitOfMeasureSale,
+            unitOfMeasurePurchase: item.unitOfMeasurePurchase,
+            isActive: !!item.isActive,
+            taxRate: item.taxRate,
         }
     }));
 
@@ -188,7 +196,10 @@ export async function getProductsByCategoryAction(categoryId: number): Promise<P
     try {
         const db = await getDbConnection();
         return db.all<Product[]>(
-            "SELECT id, name, price, category_id as categoryId, image_url as imageUrl, image_hint as imageHint FROM products WHERE category_id = ?",
+            `SELECT id, name, price, category_id as categoryId, image_url as imageUrl, image_hint as imageHint,
+            unit_of_measure_sale as unitOfMeasureSale, unit_of_measure_purchase as unitOfMeasurePurchase,
+            is_active as isActive, tax_rate as taxRate
+            FROM products WHERE category_id = ? AND is_active = 1`,
             categoryId
         );
     } catch (error) {
@@ -202,7 +213,10 @@ export async function searchProductsAction(query: string): Promise<Product[]> {
         const db = await getDbConnection();
         if (!query) return [];
         return db.all<Product[]>(
-            "SELECT id, name, price, category_id as categoryId, image_url as imageUrl, image_hint as imageHint FROM products WHERE LOWER(name) LIKE LOWER(?)",
+            `SELECT id, name, price, category_id as categoryId, image_url as imageUrl, image_hint as imageHint,
+            unit_of_measure_sale as unitOfMeasureSale, unit_of_measure_purchase as unitOfMeasurePurchase,
+            is_active as isActive, tax_rate as taxRate
+            FROM products WHERE LOWER(name) LIKE LOWER(?) AND is_active = 1`,
             `%${query}%`
         );
     } catch (error) {
@@ -734,4 +748,78 @@ export async function getLastCompletedOrderAction(shiftId: number): Promise<{ su
         return { success: false, error: "No se pudo obtener la última orden." };
     }
 }
+// #endregion
+
+// #region Admin Actions
+
+export async function getCompanyInfoAction(): Promise<CompanyInfo | null> {
+    try {
+        const db = await getDbConnection();
+        const info = await db.get<CompanyInfo>("SELECT * FROM company_info WHERE id = 1");
+        return info || null;
+    } catch (error) {
+        console.error("Failed to get company info:", error);
+        return null;
+    }
+}
+
+export async function saveCompanyInfoAction(info: Omit<CompanyInfo, 'id'>): Promise<{ success: boolean; error?: string }> {
+    try {
+        const db = await getDbConnection();
+        await db.run(
+            `UPDATE company_info SET name = ?, rtn = ?, address = ?, phone = ?, email = ?, website = ? WHERE id = 1`,
+            info.name, info.rtn, info.address, info.phone, info.email, info.website
+        );
+        return { success: true };
+    } catch (error: any) {
+        console.error("Failed to save company info:", error);
+        return { success: false, error: "No se pudo guardar la información de la empresa." };
+    }
+}
+
+export async function getAdminProductsAction(): Promise<Product[]> {
+    try {
+        const db = await getDbConnection();
+        return db.all<Product[]>(
+            `SELECT id, name, price, category_id as categoryId, image_url as imageUrl, image_hint as imageHint,
+            unit_of_measure_sale as unitOfMeasureSale, unit_of_measure_purchase as unitOfMeasurePurchase,
+            is_active as isActive, tax_rate as taxRate
+            FROM products ORDER BY name`
+        );
+    } catch (error) {
+        console.error("Failed to get products for admin:", error);
+        return [];
+    }
+}
+
+export async function saveProductAction(product: Omit<Product, 'id'> & { id?: number }): Promise<{ success: boolean; data?: Product; error?: string }> {
+    try {
+        const db = await getDbConnection();
+        const { id, name, price, categoryId, unitOfMeasureSale, unitOfMeasurePurchase, isActive, taxRate } = product;
+
+        if (id) {
+            // Update existing product
+            await db.run(
+                `UPDATE products SET name = ?, price = ?, category_id = ?, unit_of_measure_sale = ?, 
+                 unit_of_measure_purchase = ?, is_active = ?, tax_rate = ? WHERE id = ?`,
+                name, price, categoryId, unitOfMeasureSale, unitOfMeasurePurchase, isActive, taxRate, id
+            );
+            return { success: true, data: { ...product, id } };
+        } else {
+            // Create new product
+            const result = await db.run(
+                `INSERT INTO products (name, price, category_id, unit_of_measure_sale, unit_of_measure_purchase, is_active, tax_rate, image_url, image_hint) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                name, price, categoryId, unitOfMeasureSale, unitOfMeasurePurchase, isActive, taxRate, 'https://placehold.co/200x200.png', name
+            );
+            const newId = result.lastID!;
+            return { success: true, data: { ...product, id: newId } };
+        }
+    } catch (error: any) {
+        console.error("Failed to save product:", error);
+        return { success: false, error: "No se pudo guardar el producto." };
+    }
+}
+
+
 // #endregion

@@ -3,7 +3,7 @@
 
 import { Button } from '@/components/ui/button';
 import { FileText, Lock, LogOut, Settings, Printer, History } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import Link from 'next/link';
 
 interface SystemActionsProps {
     onOpenShiftSummaryDialog: () => void;
@@ -14,22 +14,15 @@ interface SystemActionsProps {
 }
 
 export default function SystemActions({ onOpenShiftSummaryDialog, onEndShift, onLogout, onReprintLast, onViewHistory }: SystemActionsProps) {
-    const { toast } = useToast();
-
-    const handleNotImplemented = () => {
-        toast({
-            title: 'Función no implementada',
-            description: 'Esta función estará disponible próximamente.',
-        });
-    };
-
     return (
         <div className="grid grid-cols-2 gap-2 mt-auto">
              <Button onClick={onOpenShiftSummaryDialog} variant="outline" className="h-14 text-xs font-bold">
                 <FileText className="mr-2 h-5 w-5" /> RESUMEN TURNO
             </Button>
-            <Button onClick={handleNotImplemented} variant="outline" className="h-14 text-xs font-bold">
-                <Settings className="mr-2 h-5 w-5" /> ADMIN
+            <Button asChild variant="outline" className="h-14 text-xs font-bold">
+                <Link href="/admin">
+                    <Settings className="mr-2 h-5 w-5" /> ADMIN
+                </Link>
             </Button>
              <Button onClick={onReprintLast} variant="outline" className="h-14 text-xs font-bold">
                 <Printer className="mr-2 h-5 w-5" /> REIMPRIMIR ÚLTIMA

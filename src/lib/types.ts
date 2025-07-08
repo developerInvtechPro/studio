@@ -5,8 +5,12 @@ export interface Product {
   name: string;
   price: number;
   categoryId: number;
-  imageUrl: string;
-  imageHint: string;
+  imageUrl: string | null;
+  imageHint: string | null;
+  unitOfMeasureSale: string | null;
+  unitOfMeasurePurchase: string | null;
+  isActive: boolean;
+  taxRate: number;
 }
 
 export interface Category {
@@ -85,4 +89,34 @@ export interface CompletedOrderInfo {
   customer_name: string | null;
   total_amount: number;
   created_at: string;
+}
+
+export interface CompanyInfo {
+    id: number;
+    name: string | null;
+    rtn: string | null;
+    address: string | null;
+    phone: string | null;
+    email: string | null;
+    website: string | null;
+}
+
+export interface CaiRecord {
+    id: number;
+    cai: string;
+    range_start: number;
+    range_end: number;
+    current_invoice_number: number | null;
+    issue_date: string;
+    expiration_date: string;
+    status: 'active' | 'pending' | 'inactive';
+}
+
+export interface Supplier {
+    id: number;
+    name: string;
+    rtn: string | null;
+    phone: string | null;
+    address: string | null;
+    email: string | null;
 }
