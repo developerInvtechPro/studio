@@ -47,7 +47,7 @@ Para evitar tener que iniciar el servidor manualmente cada vez que se reinicia l
 
 **Pasos de Configuración (se hace una sola vez por equipo):**
 
-1.  **Instalar PM2 Globalmente:** Abre una terminal y ejecuta este comando. Es posible que necesites permisos de administrador.
+1.  **Instalar PM2 Globalmente:** Abre una terminal y ejecuta este comando. En Windows, es recomendable abrir la terminal **como Administrador**.
     ```bash
     npm install pm2 -g
     ```
@@ -58,15 +58,34 @@ Para evitar tener que iniciar el servidor manualmente cada vez que se reinicia l
     ```
     Esto iniciará la aplicación con el nombre `bcpos` y la mantendrá corriendo en segundo plano.
 
-3.  **Configurar el Inicio Automático:** Ejecuta el siguiente comando. PM2 te mostrará otro comando en la pantalla. **Debes copiar ese comando y ejecutarlo también.** Este es el paso clave que registra la aplicación para que se inicie con el sistema.
+3.  **Configurar el Inicio Automático (Elige tu Sistema Operativo):**
+
+    #### **Opción A: Para Linux y macOS**
+    El comando `pm2 startup` generará y te pedirá que ejecutes un comando para registrar PM2 como un servicio de inicio del sistema.
     ```bash
     pm2 startup
     ```
+    Después de ejecutarlo, copia el comando que te aparece en la terminal y ejecútalo también.
 
-4.  **Guardar la Configuración:** Finalmente, guarda la lista de aplicaciones que PM2 debe gestionar:
+    #### **Opción B: Para Windows (¡Esta es la tuya!)**
+    El comando `pm2 startup` no funciona directamente en Windows, por eso recibiste el error `Init system not found`. Para solucionarlo, usaremos un paquete diseñado específicamente para esto.
+
+    1.  Abre una terminal (PowerShell o Símbolo del sistema) **como Administrador**.
+    2.  Instala el siguiente paquete globalmente:
+        ```bash
+        npm install pm2-windows-startup -g
+        ```
+    3.  Una vez instalado, ejecuta este comando para crear y configurar el servicio de Windows que gestionará PM2:
+        ```bash
+        pm2-startup install
+        ```
+    Esto registrará un servicio que se asegurará de que PM2 se inicie cuando arranque el sistema.
+
+4.  **Guardar la Configuración de PM2:** Este paso es crucial y es el mismo para todos los sistemas operativos. Le dice a PM2 qué aplicaciones debe reiniciar al arrancar. Asegúrate de haber iniciado tu aplicación con `npm run pm2:start` **antes** de ejecutar este comando.
     ```bash
     pm2 save
     ```
+    Cada vez que hagas un cambio en las aplicaciones que PM2 está corriendo (por ejemplo, añadir una nueva), debes ejecutar `pm2 save` de nuevo.
 
 ¡Listo! A partir de ahora, cada vez que la computadora se reinicie, el servidor de BCPOS se iniciará solo. El usuario solo necesitará abrir el navegador en `http://localhost:3000`.
 
@@ -76,6 +95,7 @@ Para evitar tener que iniciar el servidor manualmente cada vez que se reinicia l
 *   `npm run pm2:stop`: Detiene la aplicación.
 *   `pm2 restart bcpos`: Reinicia la aplicación si haces cambios.
 *   `pm2 logs bcpos`: Muestra los registros (logs) por si ocurre algún error.
+*   `pm2-startup uninstall` (Solo Windows): Desinstala el servicio de inicio automático.
 
 ---
 
