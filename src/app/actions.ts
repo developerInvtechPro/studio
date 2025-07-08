@@ -195,13 +195,14 @@ export async function getCategoriesAction(): Promise<Category[]> {
 export async function getProductsByCategoryAction(categoryId: number): Promise<Product[]> {
     try {
         const db = await getDbConnection();
-        return db.all<Product[]>(
+        const rows = await db.all<any[]>(
             `SELECT id, name, price, category_id as categoryId, image_url as imageUrl, image_hint as imageHint,
             unit_of_measure_sale as unitOfMeasureSale, unit_of_measure_purchase as unitOfMeasurePurchase,
             is_active as isActive, tax_rate as taxRate
             FROM products WHERE category_id = ? AND is_active = 1`,
             categoryId
         );
+        return rows.map(p => ({ ...p, isActive: !!p.isActive }));
     } catch (error) {
         console.error("Failed to get products by category:", error);
         return [];
@@ -212,13 +213,14 @@ export async function searchProductsAction(query: string): Promise<Product[]> {
     try {
         const db = await getDbConnection();
         if (!query) return [];
-        return db.all<Product[]>(
+        const rows = await db.all<any[]>(
             `SELECT id, name, price, category_id as categoryId, image_url as imageUrl, image_hint as imageHint,
             unit_of_measure_sale as unitOfMeasureSale, unit_of_measure_purchase as unitOfMeasurePurchase,
             is_active as isActive, tax_rate as taxRate
             FROM products WHERE LOWER(name) LIKE LOWER(?) AND is_active = 1`,
             `%${query}%`
         );
+        return rows.map(p => ({ ...p, isActive: !!p.isActive }));
     } catch (error) {
         console.error("Failed to search products:", error);
         return [];
@@ -780,12 +782,13 @@ export async function saveCompanyInfoAction(info: Omit<CompanyInfo, 'id'>): Prom
 export async function getAdminProductsAction(): Promise<Product[]> {
     try {
         const db = await getDbConnection();
-        return db.all<Product[]>(
+        const rows = await db.all<any[]>(
             `SELECT id, name, price, category_id as categoryId, image_url as imageUrl, image_hint as imageHint,
             unit_of_measure_sale as unitOfMeasureSale, unit_of_measure_purchase as unitOfMeasurePurchase,
             is_active as isActive, tax_rate as taxRate
             FROM products ORDER BY name`
         );
+        return rows.map(p => ({ ...p, isActive: !!p.isActive }));
     } catch (error) {
         console.error("Failed to get products for admin:", error);
         return [];
@@ -797,12 +800,7 @@ export async function saveProductAction(product: Omit<Product, 'id'> & { id?: nu
         const db = await getDbConnection();
         const { id, name, price, categoryId, unitOfMeasureSale, unitOfMeasurePurchase, isActive, taxRate } = product;
 
-        const getProductQuery = `
-            SELECT id, name, price, category_id as categoryId, image_url as imageUrl, image_hint as imageHint,
-            unit_of_measure_sale as unitOfMeasureSale, unit_of_measure_purchase as unitOfMeasurePurchase,
-            is_active as isActive, tax_rate as taxRate
-            FROM products WHERE id = ?
-        `;
+        let lastId = id;
 
         if (id) {
             // Update existing product
@@ -811,8 +809,6 @@ export async function saveProductAction(product: Omit<Product, 'id'> & { id?: nu
                  unit_of_measure_purchase = ?, is_active = ?, tax_rate = ? WHERE id = ?`,
                 name, price, categoryId, unitOfMeasureSale, unitOfMeasurePurchase, isActive, taxRate, id
             );
-            const updatedProduct = await db.get<Product>(getProductQuery, id);
-            return { success: true, data: updatedProduct };
         } else {
             // Create new product
             const result = await db.run(
@@ -820,10 +816,32 @@ export async function saveProductAction(product: Omit<Product, 'id'> & { id?: nu
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 name, price, categoryId, unitOfMeasureSale, unitOfMeasurePurchase, isActive, taxRate, 'https://placehold.co/200x200.png', name
             );
-            const newId = result.lastID!;
-            const newProduct = await db.get<Product>(getProductQuery, newId);
-            return { success: true, data: newProduct };
+            lastId = result.lastID!;
         }
+
+        if (!lastId) {
+            return { success: false, error: 'Could not determine product ID after save.' };
+        }
+
+        const savedProductRaw = await db.get<any>(
+            `SELECT id, name, price, category_id as categoryId, image_url as imageUrl, image_hint as imageHint,
+            unit_of_measure_sale as unitOfMeasureSale, unit_of_measure_purchase as unitOfMeasurePurchase,
+            is_active as isActive, tax_rate as taxRate
+            FROM products WHERE id = ?`,
+            lastId
+        );
+
+        if (!savedProductRaw) {
+            return { success: false, error: 'Could not retrieve product after saving.' };
+        }
+        
+        const savedProduct: Product = {
+            ...savedProductRaw,
+            isActive: !!savedProductRaw.isActive,
+        };
+
+        return { success: true, data: savedProduct };
+
     } catch (error: any) {
         console.error("Failed to save product:", error);
         return { success: false, error: "No se pudo guardar el producto." };
