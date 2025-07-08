@@ -1,12 +1,15 @@
 
 'use client';
 
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { SidebarProvider, Sidebar, SidebarHeader, SidebarContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarFooter, SidebarTrigger } from '@/components/ui/sidebar';
 import { Button } from '../ui/button';
 import { iconMap } from '@/lib/icons';
 import { Home } from 'lucide-react';
+import { useSession } from '@/context/SessionContext';
+import { useEffect } from 'react';
+import Spinner from '../ui/spinner';
 
 const menuItems = [
   { href: '/admin', label: 'Dashboard', icon: 'LayoutDashboard' },
@@ -22,6 +25,22 @@ const menuItems = [
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const { user, loading } = useSession();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && user?.role !== 'admin') {
+      router.replace('/');
+    }
+  }, [user, loading, router]);
+  
+  if (loading || user?.role !== 'admin') {
+      return (
+          <div className="h-screen w-screen flex items-center justify-center">
+              <Spinner size="lg" />
+          </div>
+      );
+  }
 
   return (
     <SidebarProvider>

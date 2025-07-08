@@ -21,6 +21,7 @@ import SystemActions from './SystemActions';
 import InvoiceDialog from './InvoiceDialog';
 import HistoryDialog from './HistoryDialog';
 import RecallDialog from './RecallDialog';
+import AdminAuthDialog from './AdminAuthDialog';
 
 import { 
     getTablesAction,
@@ -39,6 +40,7 @@ import {
     suspendOrderAction,
     recallOrderAction,
     getLastInvoiceForShiftAction,
+    loginAction
 } from '@/app/actions';
 
 export default function PosLayout() {
@@ -63,6 +65,9 @@ export default function PosLayout() {
   const [isHistoryDialogOpen, setHistoryDialogOpen] = useState(false);
   const [isRecallDialogOpen, setRecallDialogOpen] = useState(false);
   const [invoiceData, setInvoiceData] = useState<FullInvoiceData | null>(null);
+
+  const [isAdminAuthDialogOpen, setAdminAuthDialogOpen] = useState(false);
+  const [adminAuthLoading, setAdminAuthLoading] = useState(false);
 
 
   const { toast } = useToast();
@@ -416,6 +421,19 @@ export default function PosLayout() {
     setLoadingOrder(false);
   };
 
+  const handleAdminAuth = async (password: string) => {
+    if (!user) return;
+    setAdminAuthLoading(true);
+    const result = await loginAction({ username: user.username, password });
+    if (result.success && result.user?.role === 'admin') {
+      setAdminAuthDialogOpen(false);
+      router.push('/admin');
+    } else {
+      toast({ variant: 'destructive', title: 'Acceso Denegado', description: 'La contraseña es incorrecta o no tiene permisos de administrador.' });
+    }
+    setAdminAuthLoading(false);
+  };
+
 
   return (
     <div className="h-screen w-screen flex flex-col font-sans text-sm">
@@ -465,6 +483,7 @@ export default function PosLayout() {
                 onLogout={handleLogout}
                 onReprintLast={handleReprintLast}
                 onViewHistory={handleViewHistory}
+                onOpenAdminAuthDialog={() => setAdminAuthDialogOpen(true)}
             />
         </aside>
       </div>
@@ -584,6 +603,12 @@ export default function PosLayout() {
             onOpenChange={setRecallDialogOpen}
             shift={shift}
             onRecallOrder={handleRecallOrder}
+        />
+        <AdminAuthDialog
+            isOpen={isAdminAuthDialogOpen}
+            onOpenChange={setAdminAuthDialogOpen}
+            onConfirm={handleAdminAuth}
+            loading={adminAuthLoading}
         />
     </div>
   );

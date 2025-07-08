@@ -1,8 +1,12 @@
 
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { getUsersAction } from "@/app/actions";
+import UsersDataTable from "@/components/admin/UsersDataTable";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users } from "lucide-react";
 
-export default function UsuariosPage() {
+export default async function UsuariosPage() {
+  const initialUsers = await getUsersAction();
+
   return (
     <Card>
       <CardHeader>
@@ -15,7 +19,7 @@ export default function UsuariosPage() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <p>Esta función estará disponible próximamente.</p>
+        <UsersDataTable initialUsers={initialUsers} />
       </CardContent>
     </Card>
   );

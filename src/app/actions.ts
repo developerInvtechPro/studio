@@ -185,7 +185,7 @@ export async function getBudgetAction(input: BudgetTrackingInput) {
 export async function loginAction(credentials: {username: string, password: string}): Promise<{ success: boolean; user?: Omit<User, 'password'>; error?: string }> {
   try {
     const db = await getDbConnection();
-    const user = await db.get<User>('SELECT id, username, password FROM users WHERE username = ?', credentials.username);
+    const user = await db.get<User>('SELECT id, username, password, role FROM users WHERE username = ?', credentials.username);
 
     if (user && user.password === credentials.password) {
       const { password: _, ...userWithoutPassword } = user;
@@ -1115,6 +1115,74 @@ export async function saveCaiRecordAction(caiRecord: Omit<CaiRecord, 'id' | 'cur
         return { success: false, error: "No se pudo guardar el registro CAI." };
     }
 }
+
+export async function getUsersAction(): Promise<Omit<User, 'password'>[]> {
+    try {
+        const db = await getDbConnection();
+        return db.all<Omit<User, 'password'>[]>("SELECT id, username, role FROM users ORDER BY username");
+    } catch (error) {
+        console.error("Failed to get users:", error);
+        return [];
+    }
+}
+
+export async function saveUserAction(user: Partial<User>): Promise<{ success: boolean; data?: Omit<User, 'password'>; error?: string }> {
+    try {
+        const db = await getDbConnection();
+        const { id, username, password, role } = user;
+
+        if (!username || !role) {
+            return { success: false, error: "Nombre de usuario y rol son requeridos." };
+        }
+
+        let lastId = id;
+
+        if (id) {
+            // Update
+            if (password) {
+                await db.run(
+                    `UPDATE users SET username = ?, password = ?, role = ? WHERE id = ?`,
+                    username, password, role, id
+                );
+            } else {
+                await db.run(
+                    `UPDATE users SET username = ?, role = ? WHERE id = ?`,
+                    username, role, id
+                );
+            }
+        } else {
+            // Create
+            if (!password) {
+                return { success: false, error: "La contraseña es requerida para nuevos usuarios." };
+            }
+            const result = await db.run(
+                `INSERT INTO users (username, password, role) VALUES (?, ?, ?)`,
+                username, password, role
+            );
+            lastId = result.lastID!;
+        }
+
+        if (!lastId) {
+            return { success: false, error: 'Could not determine user ID after save.' };
+        }
+
+        const savedUser = await db.get<Omit<User, 'password'>>("SELECT id, username, role FROM users WHERE id = ?", lastId);
+        
+        if (!savedUser) {
+            return { success: false, error: 'Could not retrieve user after saving.' };
+        }
+
+        return { success: true, data: savedUser };
+
+    } catch (error: any) {
+        console.error("Failed to save user:", error);
+        if (error.code === 'SQLITE_CONSTRAINT') {
+            return { success: false, error: "El nombre de usuario ya existe." };
+        }
+        return { success: false, error: "No se pudo guardar el usuario." };
+    }
+}
+
 // #endregion
 
 // #region Supplier Actions

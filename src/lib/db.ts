@@ -4,10 +4,10 @@ import { open, Database } from 'sqlite';
 import type { User, Category, Product, Table, Customer, PaymentMethod, CompanyInfo } from './types';
 
 // The default data to seed the database with on first run.
-const defaultUsers: Pick<User, 'username' | 'password'>[] = [
-    { username: 'admin', password: 'password' },
-    { username: 'cajero1', password: 'password123' },
-    { username: 'cajero2', password: 'password456' },
+const defaultUsers: Omit<User, 'id'>[] = [
+    { username: 'admin', password: 'password', role: 'admin' },
+    { username: 'cajero1', password: 'password123', role: 'cashier' },
+    { username: 'cajero2', password: 'password456', role: 'cashier' },
 ];
 
 const defaultCategories = [
@@ -73,7 +73,7 @@ let dbPromise: Promise<Database> | null = null;
 
 const initializeDb = async () => {
     const db = await open({
-        filename: './cafe_central_v8.db',
+        filename: './cafe_central_v9.db',
         driver: sqlite3.verbose().Database,
     });
 
@@ -83,7 +83,8 @@ const initializeDb = async () => {
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT NOT NULL UNIQUE,
-            password TEXT NOT NULL
+            password TEXT NOT NULL,
+            role TEXT NOT NULL DEFAULT 'cashier'
         );
 
         CREATE TABLE IF NOT EXISTS categories (
@@ -213,9 +214,9 @@ const initializeDb = async () => {
     const usersCount = await db.get('SELECT COUNT(*) as count FROM users');
     if (usersCount && usersCount.count === 0) {
         console.log('Seeding database with default data...');
-        const userStmt = await db.prepare('INSERT INTO users (username, password) VALUES (?, ?)');
+        const userStmt = await db.prepare('INSERT INTO users (username, password, role) VALUES (?, ?, ?)');
         for (const user of defaultUsers) {
-            await userStmt.run(user.username, user.password);
+            await userStmt.run(user.username, user.password, user.role);
         }
         await userStmt.finalize();
         

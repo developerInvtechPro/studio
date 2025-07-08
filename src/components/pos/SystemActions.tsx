@@ -11,18 +11,17 @@ interface SystemActionsProps {
     onLogout: () => void;
     onReprintLast: () => void;
     onViewHistory: () => void;
+    onOpenAdminAuthDialog: () => void;
 }
 
-export default function SystemActions({ onOpenShiftSummaryDialog, onEndShift, onLogout, onReprintLast, onViewHistory }: SystemActionsProps) {
+export default function SystemActions({ onOpenShiftSummaryDialog, onEndShift, onLogout, onReprintLast, onViewHistory, onOpenAdminAuthDialog }: SystemActionsProps) {
     return (
         <div className="grid grid-cols-2 gap-2 mt-auto">
              <Button onClick={onOpenShiftSummaryDialog} variant="outline" className="h-14 text-xs font-bold">
                 <FileText className="mr-2 h-5 w-5" /> RESUMEN TURNO
             </Button>
-            <Button asChild variant="outline" className="h-14 text-xs font-bold">
-                <Link href="/admin">
-                    <Settings className="mr-2 h-5 w-5" /> ADMIN
-                </Link>
+            <Button onClick={onOpenAdminAuthDialog} variant="outline" className="h-14 text-xs font-bold">
+                <Settings className="mr-2 h-5 w-5" /> ADMIN
             </Button>
              <Button onClick={onReprintLast} variant="outline" className="h-14 text-xs font-bold">
                 <Printer className="mr-2 h-5 w-5" /> REIMPRIMIR ÚLTIMA

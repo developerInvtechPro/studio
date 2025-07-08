@@ -53,9 +53,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     const result = await loginAction({ username, password });
 
     if (result.success && result.user) {
-      setUser(result.user);
-      localStorage.setItem('pos-user', JSON.stringify(result.user));
-      const activeShift = await getActiveShiftAction(result.user.id);
+      const fullUser = result.user as User;
+      setUser(fullUser);
+      localStorage.setItem('pos-user', JSON.stringify(fullUser));
+      const activeShift = await getActiveShiftAction(fullUser.id);
       if (activeShift) {
         setShift(activeShift);
       }
