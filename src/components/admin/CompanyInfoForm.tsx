@@ -67,7 +67,7 @@ export default function CompanyInfoForm({ initialData }: CompanyInfoFormProps) {
                 <FormItem>
                 <FormLabel>Nombre de la Empresa</FormLabel>
                 <FormControl>
-                    <Input placeholder="Café Central" {...field} />
+                    <Input placeholder="BCPOS" {...field} />
                 </FormControl>
                 <FormMessage />
                 </FormItem>
@@ -121,7 +121,7 @@ export default function CompanyInfoForm({ initialData }: CompanyInfoFormProps) {
                 <FormItem>
                 <FormLabel>Email</FormLabel>
                 <FormControl>
-                    <Input placeholder="info@cafecentral.com" {...field} />
+                    <Input placeholder="info@bcpos.hn" {...field} />
                 </FormControl>
                 <FormMessage />
                 </FormItem>
@@ -135,7 +135,7 @@ export default function CompanyInfoForm({ initialData }: CompanyInfoFormProps) {
             <FormItem>
               <FormLabel>Sitio Web</FormLabel>
               <FormControl>
-                <Input placeholder="https://www.cafecentral.com" {...field} />
+                <Input placeholder="https://www.bcpos.hn" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>

@@ -73,7 +73,7 @@ let dbPromise: Promise<Database> | null = null;
 
 const initializeDb = async () => {
     const db = await open({
-        filename: './cafe_central_v9.db',
+        filename: './cafe_central_v10.db',
         driver: sqlite3.verbose().Database,
     });
 
@@ -244,7 +244,7 @@ const initializeDb = async () => {
         }
         await pmStmt.finalize();
 
-        await db.run("INSERT OR IGNORE INTO company_info (id, name, rtn, address, phone, email) VALUES (1, 'Café Central', '08019000123456', 'Colonia Las Acacias, Tegucigalpa, Honduras', '+504 2222-3333', 'info@cafecentral.hn')");
+        await db.run("INSERT OR IGNORE INTO company_info (id, name, rtn, address, phone, email) VALUES (1, 'BCPOS', '08019000123456', 'Colonia Las Acacias, Tegucigalpa, Honduras', '+504 2222-3333', 'info@bcpos.hn')");
     }
     
     return db;
