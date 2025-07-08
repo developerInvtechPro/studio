@@ -31,17 +31,17 @@ export default function ProtectedLayout({ children, requireAuthOnly = false }: P
     if (user) {
         if (requireAuthOnly) {
             // This is for the start-shift page.
-            // If a shift is already active, redirect to the main POS page.
+            // If any user has an active shift, they shouldn't be here.
             if (shift?.isActive) {
                 router.replace('/');
             }
-            // Otherwise, stay on the start-shift page.
             return;
         }
 
         // This is for all other protected pages (e.g., main POS page).
-        // If there's no active shift, they must go to start-shift.
-        if (!shift?.isActive) {
+        // A cashier MUST have an active shift.
+        // An admin can view without a shift.
+        if (user.role === 'cashier' && !shift?.isActive) {
             router.replace('/start-shift');
         }
     }
@@ -49,7 +49,7 @@ export default function ProtectedLayout({ children, requireAuthOnly = false }: P
   }, [user, shift, loading, router, requireAuthOnly, pathname]);
 
   // Determine what to show while loading or redirecting
-  const showSpinner = loading || !user || (!requireAuthOnly && !shift?.isActive);
+  const showSpinner = loading || !user || (!requireAuthOnly && user?.role === 'cashier' && !shift?.isActive);
   
   if (showSpinner) {
       return (
