@@ -639,7 +639,7 @@ export async function getShiftSummaryAction(shiftId: number): Promise<{ success:
     try {
         const db = await getDbConnection();
 
-        const shift = await db.get<{ startingCash: number }>("SELECT starting_cash as startingCash FROM shifts WHERE id = ?", shiftId);
+        const shift = await db.get<{ starting_cash: number }>("SELECT starting_cash FROM shifts WHERE id = ?", shiftId);
         if (!shift) {
             return { success: false, error: "Turno no encontrado." };
         }
@@ -664,9 +664,9 @@ export async function getShiftSummaryAction(shiftId: number): Promise<{ success:
             totalSales,
             totalOrders,
             salesByPaymentMethod: payments,
-            startingCash: shift.startingCash,
+            startingCash: shift.starting_cash,
             cashSales,
-            expectedCash: shift.startingCash + cashSales
+            expectedCash: shift.starting_cash + cashSales
         };
         
         return { success: true, data: summary };
