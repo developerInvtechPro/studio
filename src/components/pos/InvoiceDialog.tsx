@@ -1,4 +1,3 @@
-
 'use client';
 
 import type { FullInvoiceData } from '@/lib/types';
@@ -8,6 +7,7 @@ import { Separator } from '../ui/separator';
 import { numberToWords } from '@/lib/utils';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { Printer } from 'lucide-react';
 
 interface InvoiceDialogProps {
   isOpen: boolean;
