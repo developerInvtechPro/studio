@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -39,17 +40,13 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginFormValues) => {
     setLoading(true);
     try {
-      const loggedInUser = await login(data.username, data.password);
+      await login(data.username, data.password);
       toast({
         title: '¡Bienvenido!',
         description: 'Has iniciado sesión correctamente.',
       });
       
-      if (loggedInUser.role === 'admin') {
-        router.push('/admin');
-      } else {
-        router.push('/start-shift');
-      }
+      router.push('/start-shift');
 
     } catch (error) {
       toast({
