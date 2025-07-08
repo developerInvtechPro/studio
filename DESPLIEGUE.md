@@ -39,6 +39,44 @@ En este modelo, cada computadora ejecuta su propia copia completa de la aplicaci
 
 Repite estos pasos en cada computadora donde quieras instalar el POS. Cada instalación tendrá su propio archivo de base de datos (`.db`) y funcionará de forma independiente.
 
+### Paso Adicional: Hacer que la Aplicación se Inicie Automáticamente (Recomendado)
+
+Para evitar tener que iniciar el servidor manualmente cada vez que se reinicia la computadora, se recomienda usar un gestor de procesos como **PM2**.
+
+**¿Qué es PM2?** Es una herramienta que mantiene tu aplicación funcionando en segundo plano, la reinicia si falla y, lo más importante, puede hacer que se inicie automáticamente con el sistema.
+
+**Pasos de Configuración (se hace una sola vez por equipo):**
+
+1.  **Instalar PM2 Globalmente:** Abre una terminal y ejecuta este comando. Es posible que necesites permisos de administrador.
+    ```bash
+    npm install pm2 -g
+    ```
+
+2.  **Iniciar la Aplicación con PM2:** Desde la carpeta del proyecto, en lugar de `npm run start`, usa este nuevo comando que hemos añadido:
+    ```bash
+    npm run pm2:start
+    ```
+    Esto iniciará la aplicación con el nombre `bcpos` y la mantendrá corriendo en segundo plano.
+
+3.  **Configurar el Inicio Automático:** Ejecuta el siguiente comando. PM2 te mostrará otro comando en la pantalla. **Debes copiar ese comando y ejecutarlo también.** Este es el paso clave que registra la aplicación para que se inicie con el sistema.
+    ```bash
+    pm2 startup
+    ```
+
+4.  **Guardar la Configuración:** Finalmente, guarda la lista de aplicaciones que PM2 debe gestionar:
+    ```bash
+    pm2 save
+    ```
+
+¡Listo! A partir de ahora, cada vez que la computadora se reinicie, el servidor de BCPOS se iniciará solo. El usuario solo necesitará abrir el navegador en `http://localhost:3000`.
+
+**Comandos Útiles de PM2:**
+
+*   `pm2 list`: Muestra el estado de la aplicación `bcpos`.
+*   `npm run pm2:stop`: Detiene la aplicación.
+*   `pm2 restart bcpos`: Reinicia la aplicación si haces cambios.
+*   `pm2 logs bcpos`: Muestra los registros (logs) por si ocurre algún error.
+
 ---
 
 ## Modelo 2: Despliegue Centralizado (Datos Compartidos)
@@ -61,7 +99,7 @@ Este es el modelo profesional y estándar para un entorno donde múltiples termi
 3.  **Desplegar la Aplicación en el Servidor:**
     *   Copia el código en la máquina servidor.
     *   Configura las variables de entorno para la conexión a la base de datos.
-    *   Ejecuta `npm install`, `npm run build` y `npm run start`.
+    *   Ejecuta `npm install`, `npm run build` y `npm run start` (o configúralo con PM2 como se describió anteriormente).
     *   Asegúrate de que el firewall del servidor permita conexiones en el puerto 3000.
 4.  **Configurar las Terminales (Clientes):**
     *   En cada computadora que funcionará como caja, simplemente abre un navegador web.
