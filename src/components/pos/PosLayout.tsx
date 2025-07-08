@@ -20,6 +20,7 @@ import ShiftSummaryDialog from './ShiftSummaryDialog';
 import SystemActions from './SystemActions';
 import InvoiceDialog from './InvoiceDialog';
 import HistoryDialog from './HistoryDialog';
+import RecallDialog from './RecallDialog';
 
 import { 
     getTablesAction,
@@ -36,6 +37,8 @@ import {
     assignCustomerToOrderAction,
     getLastCompletedOrderAction,
     getOrderDetailsAction,
+    suspendOrderAction,
+    recallOrderAction,
 } from '@/app/actions';
 
 export default function PosLayout() {
@@ -58,6 +61,7 @@ export default function PosLayout() {
   const [isShiftSummaryDialogOpen, setShiftSummaryDialogOpen] = useState(false);
   const [isInvoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
   const [isHistoryDialogOpen, setHistoryDialogOpen] = useState(false);
+  const [isRecallDialogOpen, setRecallDialogOpen] = useState(false);
   const [invoiceOrder, setInvoiceOrder] = useState<Order | null>(null);
 
 
@@ -82,6 +86,33 @@ export default function PosLayout() {
   useEffect(() => {
     fetchTables();
   }, [fetchTables]);
+
+  // Restore active context from sessionStorage on page load
+  useEffect(() => {
+    if (loadingTables) return; // Wait until tables are loaded
+
+    const savedContextJson = sessionStorage.getItem('pos-context');
+    if (savedContextJson) {
+      try {
+        const savedContext = JSON.parse(savedContextJson);
+        if (savedContext.mode === 'table' && savedContext.tableId) {
+          const table = tables.find(t => t.id === savedContext.tableId);
+          if (table) {
+            setActiveMode('table');
+            setSelectedTable(table);
+          } else {
+            sessionStorage.removeItem('pos-context');
+          }
+        } else if (savedContext.mode === 'bar') {
+          setActiveMode('bar');
+        }
+      } catch (e) {
+        console.error("Failed to parse saved context", e);
+        sessionStorage.removeItem('pos-context');
+      }
+    }
+  }, [loadingTables, tables]);
+
 
   useEffect(() => {
     const updateTime = () => setTime(new Date().toLocaleString('es-HN'));
@@ -192,6 +223,7 @@ export default function PosLayout() {
       try {
         await cancelOrder(activeOrder.id);
         setActiveOrder(null);
+        sessionStorage.removeItem('pos-context');
         if (activeMode === 'table') {
             fetchTables();
         }
@@ -206,6 +238,7 @@ export default function PosLayout() {
   const handleOrderFinalized = useCallback(() => {
     setActiveOrder(null);
     setCheckoutDialogOpen(false);
+    sessionStorage.removeItem('pos-context');
     if (activeMode === 'table') {
         fetchTables();
     }
@@ -235,14 +268,15 @@ export default function PosLayout() {
 
     if (result.success) {
         toast({ title: 'Éxito', description: `La orden ha sido trasladada a ${transferTargetTable.name}.` });
-        fetchTables();
         const newSelectedTable = tables.find(t => t.id === transferTargetTable.id) || null;
         if(newSelectedTable) {
             const updatedTable = {...newSelectedTable, status: 'occupied' as const};
             setSelectedTable(updatedTable);
+            sessionStorage.setItem('pos-context', JSON.stringify({ mode: 'table', tableId: updatedTable.id }));
         }
         setTransferModalOpen(false);
         setTransferTargetTable(null);
+        fetchTables();
     } else {
         toast({ variant: 'destructive', title: 'Error', description: result.error });
     }
@@ -266,14 +300,19 @@ export default function PosLayout() {
       setActiveMode('table');
       if (selectedTable?.id === table?.id) {
           setSelectedTable(null);
+          sessionStorage.removeItem('pos-context');
       } else {
           setSelectedTable(table);
+          if (table) {
+            sessionStorage.setItem('pos-context', JSON.stringify({ mode: 'table', tableId: table.id }));
+          }
       }
   }
 
   const handleBarOrderClick = () => {
       setActiveMode('bar');
       setSelectedTable(null);
+      sessionStorage.setItem('pos-context', JSON.stringify({ mode: 'bar', tableId: null }));
   }
 
   const handleAssignCustomer = async (customer: Customer) => {
@@ -330,6 +369,42 @@ export default function PosLayout() {
       }
   };
 
+  const handleSuspendOrder = async () => {
+    if (!activeOrder) return;
+    setLoadingOrder(true);
+    const result = await suspendOrderAction(activeOrder.id);
+    if (result.success) {
+      toast({ title: 'Venta Suspendida', description: 'La orden ha sido guardada para llamarla más tarde.' });
+      setActiveOrder(null);
+      setSelectedTable(null);
+      sessionStorage.removeItem('pos-context');
+      if (activeMode === 'table') fetchTables();
+    } else {
+      toast({ variant: 'destructive', title: 'Error', description: result.error });
+    }
+    setLoadingOrder(false);
+  };
+
+  const handleRecallOrder = async (orderId: number) => {
+    if (activeOrder) {
+      toast({ variant: 'destructive', title: 'Acción inválida', description: 'Por favor, finalice o suspenda la orden actual primero.' });
+      return;
+    }
+    setLoadingOrder(true);
+    const result = await recallOrderAction(orderId);
+    if (result.success && result.data) {
+      setActiveOrder(result.data);
+      setActiveMode('bar');
+      sessionStorage.setItem('pos-context', JSON.stringify({ mode: 'bar', tableId: null }));
+      setRecallDialogOpen(false);
+      toast({ title: 'Venta Llamada', description: "La orden ha sido restaurada en modo 'Para Llevar'." });
+    } else {
+      toast({ variant: 'destructive', title: 'Error', description: result.error });
+    }
+    setLoadingOrder(false);
+  };
+
+
   return (
     <div className="h-screen w-screen flex flex-col font-sans text-sm">
       <div className="flex flex-1 overflow-hidden">
@@ -347,6 +422,8 @@ export default function PosLayout() {
             onOpenRemoveItemDialog={() => setRemoveItemDialogOpen(true)}
             onBarOrderClick={handleBarOrderClick}
             isBarOrderActive={activeMode === 'bar'}
+            onSuspendOrder={handleSuspendOrder}
+            onOpenRecallDialog={() => setRecallDialogOpen(true)}
         />
         
         <main className="flex-1 flex flex-col p-2 md:p-4 gap-4 bg-muted/30">
@@ -489,6 +566,12 @@ export default function PosLayout() {
             onOpenChange={setHistoryDialogOpen}
             shift={shift}
             onViewDetails={handleViewOrderDetails}
+        />
+        <RecallDialog
+            isOpen={isRecallDialogOpen}
+            onOpenChange={setRecallDialogOpen}
+            shift={shift}
+            onRecallOrder={handleRecallOrder}
         />
     </div>
   );

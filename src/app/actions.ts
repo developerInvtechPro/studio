@@ -3,7 +3,7 @@
 
 import type { SmartUpsellInput } from '@/ai/flows/smart-upsell';
 import type { BudgetTrackingInput } from '@/ai/flows/ai-powered-budget-and-profitability-tracking';
-import type { User, Category, Product, Table, Shift, Order, OrderItem, Customer, PaymentMethod, CompletedOrderInfo, CompanyInfo, Supplier } from '@/lib/types';
+import type { User, Category, Product, Table, Shift, Order, OrderItem, Customer, PaymentMethod, CompletedOrderInfo, CompanyInfo, Supplier, Payment } from '@/lib/types';
 import { getDbConnection } from '@/lib/db';
 import { getSmartUpsellRecommendations } from '@/ai/flows/smart-upsell';
 import { aiPoweredBudgetAndProfitabilityTracking } from '@/ai/flows/ai-powered-budget-and-profitability-tracking';
@@ -551,6 +551,50 @@ export async function transferOrderAction(orderId: number, oldTableId: number, n
     return { success: false, error: "No se pudo trasladar la orden." };
   }
 }
+
+export async function suspendOrderAction(orderId: number): Promise<{ success: boolean; error?: string }> {
+    try {
+        const db = await getDbConnection();
+        await db.run('BEGIN TRANSACTION');
+        try {
+            const order = await db.get<{ table_id: number }>("SELECT table_id FROM orders WHERE id = ?", orderId);
+            if (order && order.table_id) {
+                await db.run("UPDATE tables SET status = 'available' WHERE id = ?", order.table_id);
+            }
+            // Set status to suspended and unlink from table
+            await db.run("UPDATE orders SET status = 'suspended', table_id = NULL WHERE id = ?", orderId);
+            await db.run('COMMIT');
+            return { success: true };
+        } catch (innerError: any) {
+            await db.run('ROLLBACK');
+            throw innerError;
+        }
+    } catch (error) {
+        console.error("Failed to suspend order:", error);
+        return { success: false, error: "No se pudo suspender la orden." };
+    }
+}
+
+export async function recallOrderAction(orderId: number): Promise<{ success: boolean; data?: Order; error?: string }> {
+    try {
+        const db = await getDbConnection();
+        const activeBarOrder = await db.get("SELECT id FROM orders WHERE shift_id = (SELECT shift_id FROM orders WHERE id = ?) AND status = 'pending' AND table_id IS NULL", orderId);
+        
+        if (activeBarOrder) {
+            return { success: false, error: "Ya existe una orden para llevar activa. Finalícela o suspéndala primero." };
+        }
+
+        await db.run("UPDATE orders SET status = 'pending', order_type = 'take-away' WHERE id = ?", orderId);
+        
+        const fullOrder = await getOrderFromDb(db, orderId);
+        if (!fullOrder) throw new Error("No se pudo recuperar la orden actualizada.");
+        
+        return { success: true, data: fullOrder };
+    } catch (error: any) {
+        console.error("Failed to recall order:", error);
+        return { success: false, error: "No se pudo llamar la orden." };
+    }
+}
 // #endregion
 
 // #region Customer Actions
@@ -713,6 +757,23 @@ export async function getCompletedOrdersForShiftAction(shiftId: number): Promise
     }
 }
 
+export async function getSuspendedOrdersAction(shiftId: number): Promise<{ success: boolean; data?: CompletedOrderInfo[]; error?: string }> {
+    try {
+        const db = await getDbConnection();
+        const orders = await db.all<CompletedOrderInfo[]>(
+            `SELECT id, customer_name, total_amount, created_at
+             FROM orders
+             WHERE shift_id = ? AND status = 'suspended'
+             ORDER BY created_at DESC`,
+            shiftId
+        );
+        return { success: true, data: orders };
+    } catch (error: any) {
+        console.error("Failed to get suspended orders:", error);
+        return { success: false, error: "No se pudo obtener el historial de órdenes suspendidas." };
+    }
+}
+
 export async function getOrderDetailsAction(orderId: number): Promise<{ success: boolean; data?: Order; error?: string }> {
     try {
         const db = await getDbConnection();
@@ -731,7 +792,7 @@ export async function getLastCompletedOrderAction(shiftId: number): Promise<{ su
     try {
         const db = await getDbConnection();
         const lastOrderHeader = await db.get<{ id: number }>(
-            "SELECT id FROM orders WHERE shift_id = ? AND status = 'completed' ORDER BY id DESC LIMIT 1",
+            "SELECT id FROM orders WHERE shift_id = ? AND status = 'completed' ORDER BY created_at DESC LIMIT 1",
             shiftId
         );
         

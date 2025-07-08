@@ -3,7 +3,7 @@
 
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Settings, Calendar, Ban, Search, Tag, Receipt, PauseCircle, LogOut, Lock, Move, ShoppingCart } from 'lucide-react';
+import { Settings, Calendar, Ban, Search, Tag, Receipt, PauseCircle, LogOut, Lock, Move, ShoppingCart, PhoneForwarded } from 'lucide-react';
 import type { Table } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
@@ -20,6 +20,8 @@ interface ActionPanelProps {
     onOpenRemoveItemDialog: () => void;
     onOpenSearchProductDialog: () => void;
     onOpenDiscountDialog: () => void;
+    onSuspendOrder: () => void;
+    onOpenRecallDialog: () => void;
     hasOpenOrder: boolean;
     onBarOrderClick: () => void;
     isBarOrderActive: boolean;
@@ -36,6 +38,8 @@ export default function ActionPanel({
     onOpenRemoveItemDialog,
     onOpenSearchProductDialog,
     onOpenDiscountDialog,
+    onSuspendOrder,
+    onOpenRecallDialog,
     hasOpenOrder,
     onBarOrderClick,
     isBarOrderActive,
@@ -68,7 +72,7 @@ export default function ActionPanel({
   };
 
   const mainActions = [
-    { label: 'SUSPENDER VENTA', icon: PauseCircle, onClick: handleNotImplemented, disabled: !hasOpenOrder },
+    { label: 'SUSPENDER VENTA', icon: PauseCircle, onClick: onSuspendOrder, disabled: !hasOpenOrder },
     { label: 'ANULAR PRODUCTO', icon: Ban, onClick: onOpenRemoveItemDialog, disabled: !hasOpenOrder },
     { label: 'BUSCAR PRODUCTO', icon: Search, onClick: onOpenSearchProductDialog, disabled: false },
     { label: 'DESCUENTO', icon: Tag, onClick: onOpenDiscountDialog, disabled: !hasOpenOrder },
@@ -87,7 +91,9 @@ export default function ActionPanel({
         ))}
       </div>
       <div className="flex flex-col gap-2">
-        <Button onClick={handleNotImplemented} className="w-full bg-blue-500 hover:bg-blue-600 text-white text-xs h-10">NUEVO DELIVERY</Button>
+        <Button onClick={onOpenRecallDialog} disabled={hasOpenOrder} className="w-full bg-cyan-500 hover:bg-cyan-600 text-white text-xs h-10">
+            <PhoneForwarded className="mr-2 h-4 w-4" /> LLAMAR VENTA
+        </Button>
         <Button 
             onClick={onBarOrderClick}
             variant={isBarOrderActive ? 'secondary' : 'default'}

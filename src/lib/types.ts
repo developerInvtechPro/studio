@@ -67,7 +67,7 @@ export interface Order {
     discount_percentage: number;
     discount_amount: number;
     total_amount: number;
-    status: 'pending' | 'completed' | 'cancelled';
+    status: 'pending' | 'completed' | 'cancelled' | 'suspended';
     created_at: string;
     items: OrderItem[];
     order_type: 'dine-in' | 'take-away' | 'delivery';
