@@ -21,18 +21,21 @@ import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { Textarea } from '../ui/textarea';
 
+const rangeRegex = /^\d{3}-\d{3}-\d{2}-\d{8}$/;
+
 const formSchema = z.object({
   cai: z.string().min(1, 'El CAI es requerido'),
-  range_start: z.string().regex(/^\d+$/, "El rango debe ser un número.").min(1, "El rango inicial es requerido."),
-  range_end: z.string().regex(/^\d+$/, "El rango debe ser un número.").min(1, "El rango final es requerido."),
+  range_start: z.string().regex(rangeRegex, "El formato debe ser 000-000-00-00000000."),
+  range_end: z.string().regex(rangeRegex, "El formato debe ser 000-000-00-00000000."),
   issue_date: z.date({ required_error: 'La fecha de emisión es requerida' }),
   expiration_date: z.date({ required_error: 'La fecha de expiración es requerida' }),
   status: z.enum(['active', 'pending', 'inactive'], {
     required_error: "Debe seleccionar un estado.",
   }),
 }).refine(data => {
-    const start = parseInt(data.range_start, 10);
-    const end = parseInt(data.range_end, 10);
+    // Remove hyphens and parse as number for comparison
+    const start = parseInt(data.range_start.replace(/-/g, ''), 10);
+    const end = parseInt(data.range_end.replace(/-/g, ''), 10);
     return !isNaN(start) && !isNaN(end) && end > start;
 }, {
     message: "El rango final debe ser mayor que el rango inicial.",
@@ -134,7 +137,7 @@ export default function CaiFormDialog({ isOpen, onOpenChange, caiRecord, onRecor
                 render={({ field }) => (
                     <FormItem>
                     <FormLabel>Rango Inicial</FormLabel>
-                    <FormControl><Input type="text" {...field} /></FormControl>
+                    <FormControl><Input type="text" placeholder="000-000-00-00000000" {...field} /></FormControl>
                     <FormMessage />
                     </FormItem>
                 )}
@@ -145,7 +148,7 @@ export default function CaiFormDialog({ isOpen, onOpenChange, caiRecord, onRecor
                 render={({ field }) => (
                     <FormItem>
                     <FormLabel>Rango Final</FormLabel>
-                    <FormControl><Input type="text" {...field} /></FormControl>
+                    <FormControl><Input type="text" placeholder="000-000-00-00000000" {...field} /></FormControl>
                     <FormMessage />
                     </FormItem>
                 )}
