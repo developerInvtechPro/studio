@@ -23,14 +23,18 @@ import { Textarea } from '../ui/textarea';
 
 const formSchema = z.object({
   cai: z.string().min(1, 'El CAI es requerido'),
-  range_start: z.coerce.number().positive('El rango inicial debe ser un número positivo'),
-  range_end: z.coerce.number().positive('El rango final debe ser un número positivo'),
+  range_start: z.string().regex(/^\d+$/, "El rango debe ser un número.").min(1, "El rango inicial es requerido."),
+  range_end: z.string().regex(/^\d+$/, "El rango debe ser un número.").min(1, "El rango final es requerido."),
   issue_date: z.date({ required_error: 'La fecha de emisión es requerida' }),
   expiration_date: z.date({ required_error: 'La fecha de expiración es requerida' }),
   status: z.enum(['active', 'pending', 'inactive'], {
     required_error: "Debe seleccionar un estado.",
   }),
-}).refine(data => data.range_end > data.range_start, {
+}).refine(data => {
+    const start = parseInt(data.range_start, 10);
+    const end = parseInt(data.range_end, 10);
+    return !isNaN(start) && !isNaN(end) && end > start;
+}, {
     message: "El rango final debe ser mayor que el rango inicial.",
     path: ["range_end"],
 }).refine(data => data.expiration_date > data.issue_date, {
@@ -69,8 +73,8 @@ export default function CaiFormDialog({ isOpen, onOpenChange, caiRecord, onRecor
       } else {
         form.reset({
           cai: '',
-          range_start: undefined,
-          range_end: undefined,
+          range_start: '',
+          range_end: '',
           issue_date: new Date(),
           expiration_date: undefined,
           status: 'pending',
@@ -82,11 +86,13 @@ export default function CaiFormDialog({ isOpen, onOpenChange, caiRecord, onRecor
   const onSubmit = async (data: FormValues) => {
     setLoading(true);
     const recordToSave = { 
-        ...data,
         id: caiRecord?.id,
+        cai: data.cai,
+        range_start: data.range_start,
+        range_end: data.range_end,
         issue_date: data.issue_date.toISOString(),
         expiration_date: data.expiration_date.toISOString(),
-        current_invoice_number: caiRecord?.current_invoice_number ?? data.range_start
+        status: data.status,
     };
     
     const result = await saveCaiRecordAction(recordToSave);
@@ -128,7 +134,7 @@ export default function CaiFormDialog({ isOpen, onOpenChange, caiRecord, onRecor
                 render={({ field }) => (
                     <FormItem>
                     <FormLabel>Rango Inicial</FormLabel>
-                    <FormControl><Input type="number" {...field} /></FormControl>
+                    <FormControl><Input type="text" {...field} /></FormControl>
                     <FormMessage />
                     </FormItem>
                 )}
@@ -139,7 +145,7 @@ export default function CaiFormDialog({ isOpen, onOpenChange, caiRecord, onRecor
                 render={({ field }) => (
                     <FormItem>
                     <FormLabel>Rango Final</FormLabel>
-                    <FormControl><Input type="number" {...field} /></FormControl>
+                    <FormControl><Input type="text" {...field} /></FormControl>
                     <FormMessage />
                     </FormItem>
                 )}
@@ -163,7 +169,7 @@ export default function CaiFormDialog({ isOpen, onOpenChange, caiRecord, onRecor
                                 )}
                                 >
                                 {field.value ? (
-                                    format(field.value, "PPP", { useAdditionalWeekYearTokens: true })
+                                    format(field.value, "PPP")
                                 ) : (
                                     <span>Seleccione una fecha</span>
                                 )}
@@ -177,7 +183,7 @@ export default function CaiFormDialog({ isOpen, onOpenChange, caiRecord, onRecor
                                 selected={field.value}
                                 onSelect={field.onChange}
                                 disabled={(date) =>
-                                date > new Date() || date < new Date("1900-01-01")
+                                 date < new Date("1900-01-01")
                                 }
                                 initialFocus
                             />
@@ -204,7 +210,7 @@ export default function CaiFormDialog({ isOpen, onOpenChange, caiRecord, onRecor
                                 )}
                                 >
                                 {field.value ? (
-                                    format(field.value, "PPP", { useAdditionalWeekYearTokens: true })
+                                    format(field.value, "PPP")
                                 ) : (
                                     <span>Seleccione una fecha</span>
                                 )}

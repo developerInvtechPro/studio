@@ -961,7 +961,7 @@ export async function getCaiRecordsAction(): Promise<CaiRecord[]> {
     }
 }
 
-export async function saveCaiRecordAction(caiRecord: Omit<CaiRecord, 'id' | 'current_invoice_number'> & { id?: number, current_invoice_number?: number | null }): Promise<{ success: boolean; data?: CaiRecord; error?: string }> {
+export async function saveCaiRecordAction(caiRecord: Omit<CaiRecord, 'id' | 'current_invoice_number'> & { id?: number }): Promise<{ success: boolean; data?: CaiRecord; error?: string }> {
     try {
         const db = await getDbConnection();
         const { id, cai, range_start, range_end, issue_date, expiration_date, status } = caiRecord;
@@ -969,7 +969,7 @@ export async function saveCaiRecordAction(caiRecord: Omit<CaiRecord, 'id' | 'cur
         if (!cai || !range_start || !range_end || !issue_date || !expiration_date || !status) {
             return { success: false, error: "Todos los campos son requeridos." };
         }
-        if (range_start >= range_end) {
+        if (parseInt(range_start, 10) >= parseInt(range_end, 10)) {
             return { success: false, error: "El rango inicial debe ser menor que el rango final." };
         }
 

@@ -73,7 +73,7 @@ let dbPromise: Promise<Database> | null = null;
 
 const initializeDb = async () => {
     const db = await open({
-        filename: './cafe_central_v6.db',
+        filename: './cafe_central_v7.db',
         driver: sqlite3.verbose().Database,
     });
 
@@ -189,9 +189,9 @@ const initializeDb = async () => {
         CREATE TABLE IF NOT EXISTS cai_records (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             cai TEXT NOT NULL,
-            range_start INTEGER NOT NULL,
-            range_end INTEGER NOT NULL,
-            current_invoice_number INTEGER,
+            range_start TEXT NOT NULL,
+            range_end TEXT NOT NULL,
+            current_invoice_number TEXT,
             issue_date TEXT NOT NULL,
             expiration_date TEXT NOT NULL,
             status TEXT NOT NULL -- active, pending, inactive

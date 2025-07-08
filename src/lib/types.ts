@@ -104,9 +104,9 @@ export interface CompanyInfo {
 export interface CaiRecord {
     id: number;
     cai: string;
-    range_start: number;
-    range_end: number;
-    current_invoice_number: number | null;
+    range_start: string;
+    range_end: string;
+    current_invoice_number: string | null;
     issue_date: string;
     expiration_date: string;
     status: 'active' | 'pending' | 'inactive';
