@@ -56,7 +56,7 @@ Para evitar tener que iniciar el servidor manualmente cada vez que se reinicia l
     ```bash
     npm run pm2:start
     ```
-    Esto iniciará la aplicación con el nombre `bcpos` y la mantendrá corriendo en segundo plano.
+    Esto iniciará la aplicación con el nombre `bcpos` y la mantendrá corriendo en segundo plano. El script está configurado para que PM2 ejecute Next.js directamente, lo cual es más estable, especialmente en Windows.
 
 3.  **Configurar el Inicio Automático (Elige tu Sistema Operativo):**
 
