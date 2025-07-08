@@ -1,92 +1,61 @@
 
-@echo off
-ECHO ==========================================
-ECHO  Configurador Automatico de BCPOS para PM2
-ECHO ==========================================
-ECHO.
-ECHO Este script instalara y configurara PM2 para que BCPOS
-ECHO se inicie automaticamente con Windows.
-ECHO.
+@echo on
+title BCPOS Setup
 
-:: 1. Solicitar privilegios de administrador
-:check_permissions
-    net session >nul 2>&1
-    if %errorlevel% == 0 (
-        ECHO [OK] Permisos de administrador concedidos.
-        goto :main_script
-    ) else (
-        ECHO [ERROR] Se requieren permisos de administrador.
-        ECHO Por favor, haga clic derecho en este archivo y seleccione "Ejecutar como administrador".
-        ECHO.
-        pause
-        exit
-    )
+echo ===========================================
+echo BCPOS Windows Setup
+echo ===========================================
+echo.
 
-:main_script
-ECHO.
-ECHO --- PASO 1: Instalando dependencias del proyecto ---
-call npm install
-if %errorlevel% neq 0 (
-    ECHO [ERROR] Fallo la instalacion de dependencias. Abortando.
-    pause
-    exit /b %errorlevel%
-)
-ECHO [OK] Dependencias instaladas.
+REM Request administrator privileges
+>nul 2>&1 "%SYSTEMROOT%\system32\cacls.exe" "%SYSTEMROOT%\system32\config\system"
+if '%errorlevel%' NEQ '0' (
+    echo Requesting administrator privileges...
+    goto UACPrompt
+) else ( goto gotAdmin )
 
-ECHO.
-ECHO --- PASO 2: Compilando la aplicacion para produccion ---
-call npm run build
-if %errorlevel% neq 0 (
-    ECHO [ERROR] Fallo la compilacion de la aplicacion. Abortando.
-    pause
-    exit /b %errorlevel%
-)
-ECHO [OK] Aplicacion compilada.
+:UACPrompt
+    echo Set UAC = CreateObject^("Shell.Application"^) > "%temp%\getadmin.vbs"
+    echo UAC.ShellExecute "%~s0", "", "", "runas", 1 >> "%temp%\getadmin.vbs"
+    "%temp%\getadmin.vbs"
+    exit /B
 
-ECHO.
-ECHO --- PASO 3: Instalando y configurando PM2 ---
-ECHO Instalando PM2 globalmente...
-call npm install pm2 -g
-ECHO Instalando el servicio de inicio de PM2 para Windows...
-call npm install pm2-windows-startup -g
-call pm2-startup install
-if %errorlevel% neq 0 (
-    ECHO [ADVERTENCIA] El comando pm2-startup podria haber fallado. Se continua de todas formas.
-)
-ECHO [OK] Servicios de PM2 instalados.
+:gotAdmin
+    if exist "%temp%\getadmin.vbs" ( del "%temp%\getadmin.vbs" )
+    pushd "%CD%"
+    CD /D "%~dp0"
 
-ECHO.
-ECHO --- PASO 4: Iniciando BCPOS con PM2 ---
-ECHO Deteniendo cualquier version anterior de BCPOS...
-call pm2 delete bcpos >nul 2>&1
-ECHO Iniciando BCPOS...
-call pm2 start ecosystem.config.js
-if %errorlevel% neq 0 (
-    ECHO [ERROR] Fallo al iniciar BCPOS con PM2. Abortando.
-    pause
-    exit /b %errorlevel%
-)
-ECHO [OK] Aplicacion iniciada.
 
-ECHO.
-ECHO --- PASO 5: Guardando la configuracion de PM2 ---
-call pm2 save
-if %errorlevel% neq 0 (
-    ECHO [ERROR] Fallo al guardar la lista de procesos de PM2.
-    pause
-    exit /b %errorlevel%
-)
-ECHO [OK] Configuracion guardada.
+echo [1/7] Installing/Updating PM2 globally...
+npm install pm2@latest -g
 
-ECHO.
-ECHO =======================================================
-ECHO  PROCESO DE CONFIGURACION FINALIZADO
-ECHO =======================================================
-ECHO.
-ECHO Verificando estado final de BCPOS:
-call pm2 list
-ECHO.
-ECHO Si el estado de 'bcpos' es 'online', la configuracion fue exitosa.
-ECHO Puede acceder a la aplicacion en http://localhost:3000
-ECHO.
+echo [2/7] Installing PM2 Windows Startup service...
+npm install pm2-windows-startup -g
+pm2-windows-startup install --unattended
+
+echo [3/7] Installing project dependencies...
+npm install
+
+echo [4/7] Building the application for production...
+npm run build
+
+echo [5/7] Deleting any old 'bcpos' process to ensure a clean start...
+pm2 delete bcpos
+
+echo [6/7] Starting BCPOS with PM2 from the configuration file...
+pm2 start ecosystem.config.js
+
+echo [7/7] Saving the process list for startup...
+pm2 save
+
+echo.
+echo ===========================================
+echo Setup Complete!
+echo ===========================================
+echo BCPOS should now be running. Let's check:
+pm2 list
+echo.
+echo If 'bcpos' status is 'online', everything is working!
+echo You can access the POS at http://localhost:3000
+echo.
 pause

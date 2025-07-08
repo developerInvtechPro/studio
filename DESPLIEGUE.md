@@ -68,13 +68,16 @@ Para evitar tener que iniciar el servidor manualmente cada vez que se reinicia l
     ```bash
     npm install pm2 -g
     ```
-
-2.  **Iniciar la Aplicación con PM2:** Desde la carpeta del proyecto, en lugar de `npm run start`, usa este nuevo comando que hemos añadido. Esto leerá el archivo `ecosystem.config.js` que es el método más estable.
+2.  **Borrar Procesos Antiguos (Importante para evitar errores):** Si ya habías intentado iniciar `bcpos` antes, es crucial borrar la configuración antigua para asegurar un inicio limpio.
+    ```bash
+    pm2 delete bcpos
+    ```
+3.  **Iniciar la Aplicación con PM2:** Desde la carpeta del proyecto, en lugar de `npm run start`, usa este nuevo comando que hemos añadido. Esto leerá el archivo `ecosystem.config.js` que es el método más estable.
     ```bash
     npm run pm2:start
     ```
 
-3.  **Configurar el Inicio Automático (Elige tu Sistema Operativo):**
+4.  **Configurar el Inicio Automático (Elige tu Sistema Operativo):**
 
     #### **Opción A: Para Linux y macOS**
     El comando `pm2 startup` generará y te pedirá que ejecutes un comando para registrar PM2 como un servicio de inicio del sistema.
@@ -97,7 +100,7 @@ Para evitar tener que iniciar el servidor manualmente cada vez que se reinicia l
         ```
     Esto registrará un servicio que se asegurará de que PM2 se inicie cuando arranque el sistema.
 
-4.  **Guardar la Configuración de PM2:** Este paso es crucial y es el mismo para todos los sistemas operativos. Le dice a PM2 qué aplicaciones debe reiniciar al arrancar. Asegúrate de haber iniciado tu aplicación con `npm run pm2:start` **antes** de ejecutar este comando.
+5.  **Guardar la Configuración de PM2:** Este paso es crucial y es el mismo para todos los sistemas operativos. Le dice a PM2 qué aplicaciones debe reiniciar al arrancar. Asegúrate de haber iniciado tu aplicación con `npm run pm2:start` **antes** de ejecutar este comando.
     ```bash
     pm2 save
     ```
