@@ -24,19 +24,23 @@ const rangeRegex = /^\d{3}-\d{3}-\d{2}-\d{8}$/;
 
 const formSchema = z.object({
   cai: z.string().min(1, 'El CAI es requerido'),
-  range_start: z.string().regex(rangeRegex, "El formato debe ser 000-000-00-00000000."),
-  range_end: z.string().regex(rangeRegex, "El formato debe ser 000-000-00-00000000."),
+  range_start: z.string().regex(rangeRegex, "Formato: 000-000-00-00000000"),
+  range_end: z.string().regex(rangeRegex, "Formato: 000-000-00-00000000"),
   issue_date: z.date({ required_error: 'La fecha de emisión es requerida' }),
   expiration_date: z.date({ required_error: 'La fecha límite de emisión es requerida' }),
   status: z.enum(['active', 'pending', 'inactive'], {
     required_error: "Debe seleccionar un estado.",
   }),
 }).refine(data => {
-    const start = parseInt(data.range_start.replace(/-/g, ''), 10);
-    const end = parseInt(data.range_end.replace(/-/g, ''), 10);
-    return !isNaN(start) && !isNaN(end) && end > start;
+    try {
+        const start = BigInt(data.range_start.replace(/-/g, ''));
+        const end = BigInt(data.range_end.replace(/-/g, ''));
+        return end > start;
+    } catch (e) {
+        return false;
+    }
 }, {
-    message: "El rango final debe ser mayor que el rango inicial.",
+    message: "El rango inicial debe ser menor que el rango final.",
     path: ["range_end"],
 });
 

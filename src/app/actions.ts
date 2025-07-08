@@ -969,8 +969,15 @@ export async function saveCaiRecordAction(caiRecord: Omit<CaiRecord, 'id' | 'cur
         if (!cai || !range_start || !range_end || !issue_date || !expiration_date || !status) {
             return { success: false, error: "Todos los campos son requeridos." };
         }
-        if (parseInt(range_start, 10) >= parseInt(range_end, 10)) {
-            return { success: false, error: "El rango inicial debe ser menor que el rango final." };
+        
+        try {
+            const startNum = BigInt(range_start.replace(/-/g, ''));
+            const endNum = BigInt(range_end.replace(/-/g, ''));
+            if (startNum >= endNum) {
+                return { success: false, error: "El rango inicial debe ser menor que el rango final." };
+            }
+        } catch (e) {
+            return { success: false, error: "El formato de los rangos es inválido." };
         }
 
         if (status === 'active') {
