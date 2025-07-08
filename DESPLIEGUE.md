@@ -53,7 +53,7 @@ Si prefieres hacerlo paso a paso o el script falla por alguna razón.
 
 ### Hacer que la Aplicación se Inicie Automáticamente (PM2)
 
-Para evitar tener que iniciar el servidor manualmente cada vez que se reinicia la computadora, usamos un gestor de procesos como **PM2**.
+Para evitar tener que iniciar el servidor manually cada vez que se reinicia la computadora, usamos un gestor de procesos como **PM2**.
 
 **¿Qué es PM2?** Es una herramienta que mantiene tu aplicación funcionando en segundo plano, la reinicia si falla y, lo más importante, puede hacer que se inicie automáticamente con el sistema.
 
@@ -147,7 +147,7 @@ Este proceso es similar al anterior, pero en lugar de usar un servidor local, se
 2.  **Desplegar la Aplicación Next.js:**
     *   Sube el código de tu proyecto a la plataforma de hosting.
     *   Configura las variables de entorno en esa plataforma para que la aplicación pueda conectarse a tu base de datos.
-    *   La plataforma te dará una URL pública (ej. `https://mipos.vercel.app`).
+    *   La plataforma te dará una URL pública (ej. `mipos.vercel.app`).
 3.  **Configurar las Terminales:**
     *   En cada terminal, abre un navegador y ve a la URL pública. Todos se conectarán al mismo sistema.
 
