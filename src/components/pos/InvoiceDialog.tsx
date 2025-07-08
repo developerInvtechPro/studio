@@ -18,7 +18,7 @@ interface InvoiceDialogProps {
 export default function InvoiceDialog({ isOpen, onOpenChange, invoiceData }: InvoiceDialogProps) {
     if (!invoiceData) return null;
 
-    const { order, companyInfo, caiRecord, customer } = invoiceData;
+    const { order, companyInfo, caiRecord, customer, payments } = invoiceData;
 
     const handlePrint = () => {
         window.print();
@@ -107,6 +107,12 @@ export default function InvoiceDialog({ isOpen, onOpenChange, invoiceData }: Inv
                     <div className="text-xs space-y-1">
                         <p><strong>CLIENTE:</strong> {customer?.name || order.customer_name || 'Consumidor Final'}</p>
                         <p><strong>RTN:</strong> {customer?.rtn || 'N/A'}</p>
+                    </div>
+
+                    <Separator className="my-3 border-dashed" />
+                    
+                     <div className="text-xs space-y-1">
+                        <p><strong>FORMA DE PAGO:</strong> {payments.map(p => p.name).join(', ')}</p>
                     </div>
 
                     <Separator className="my-3 border-dashed" />

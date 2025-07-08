@@ -871,7 +871,15 @@ export async function getInvoiceDataAction(orderId: number): Promise<{ success: 
 
         const customer = order.customer_id ? await db.get<Customer>("SELECT * FROM customers WHERE id = ?", order.customer_id) : null;
         
-        return { success: true, data: { order, companyInfo, caiRecord, customer } };
+        const payments = await db.all<{ name: string, amount: number }>(
+            `SELECT pm.name, p.amount
+             FROM payments p
+             JOIN payment_methods pm ON p.payment_method_id = pm.id
+             WHERE p.order_id = ?`,
+            orderId
+        );
+
+        return { success: true, data: { order, companyInfo, caiRecord, customer, payments } };
 
     } catch (error: any) {
         console.error("Failed to get invoice data:", error);

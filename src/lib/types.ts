@@ -91,6 +91,7 @@ export interface CompletedOrderInfo {
   customer_name: string | null;
   total_amount: number;
   created_at: string;
+  invoice_number: string | null;
 }
 
 export interface CompanyInfo {
@@ -128,4 +129,5 @@ export interface FullInvoiceData {
     companyInfo: CompanyInfo;
     caiRecord: CaiRecord;
     customer: Customer | null;
+    payments: { name: string; amount: number }[];
 }
