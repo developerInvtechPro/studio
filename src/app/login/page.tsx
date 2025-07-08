@@ -10,10 +10,9 @@ import { useSession } from '@/context/SessionContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Coffee } from 'lucide-react';
+import { BcposLogo } from '@/components/ui/BcposLogo';
 
 const loginSchema = z.object({
   username: z.string().min(3, { message: 'El nombre de usuario debe tener al menos 3 caracteres.' }),
@@ -24,7 +23,7 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login } = useSession();
+  const { login, user, loading: sessionLoading } = useSession();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
 
@@ -39,12 +38,17 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginFormValues) => {
     setLoading(true);
     try {
-      await login(data.username, data.password);
+      const loggedInUser = await login(data.username, data.password);
       toast({
         title: '¡Bienvenido!',
         description: 'Has iniciado sesión correctamente.',
       });
-      router.push('/');
+
+      if (loggedInUser.role === 'admin') {
+        router.push('/admin');
+      } else {
+        router.push('/');
+      }
 
     } catch (error) {
       toast({
@@ -57,16 +61,23 @@ export default function LoginPage() {
       setLoading(false);
     }
   };
+  
+  // If user is already logged in, redirect them
+  if (!sessionLoading && user) {
+      if (user.role === 'admin') {
+        router.replace('/admin');
+      } else {
+        router.replace('/');
+      }
+      return null; // Render nothing while redirecting
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/30">
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
-          <div className="flex justify-center mb-4">
-            <Coffee className="h-10 w-10 text-primary" />
-          </div>
-          <CardTitle className="text-2xl font-headline">Café Central POS</CardTitle>
-          <CardDescription>Ingrese sus credenciales para comenzar</CardDescription>
+           <BcposLogo className="mx-auto" />
+          <CardDescription className='pt-4'>Ingrese sus credenciales para continuar</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -103,6 +114,9 @@ export default function LoginPage() {
             </form>
           </Form>
         </CardContent>
+         <CardFooter>
+            <p className="mx-auto text-xs text-muted-foreground">by INVTECH</p>
+         </CardFooter>
       </Card>
     </div>
   );

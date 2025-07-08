@@ -30,7 +30,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   useEffect(() => {
     if (!loading && user?.role !== 'admin') {
-      router.replace('/');
+      router.replace('/login');
     }
   }, [user, loading, router]);
   
@@ -48,7 +48,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <SidebarHeader>
             <div className="flex items-center gap-2">
                 <SidebarTrigger />
-                <h1 className="font-bold text-lg">Admin</h1>
+                <h1 className="font-bold text-lg">BCPOS</h1>
             </div>
         </SidebarHeader>
         <SidebarContent>
