@@ -46,7 +46,7 @@ export default function ShiftSummaryDialog({ isOpen, onOpenChange, shift }: Shif
         fetchSummary();
     }, [isOpen, shift, toast]);
 
-    const formatCurrency = (amount: number) => `L ${amount.toFixed(2)}`;
+    const formatCurrency = (amount: number) => `L ${(amount || 0).toFixed(2)}`;
 
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>

@@ -639,7 +639,7 @@ export async function getShiftSummaryAction(shiftId: number): Promise<{ success:
     try {
         const db = await getDbConnection();
 
-        const shift = await db.get<Shift>("SELECT starting_cash FROM shifts WHERE id = ?", shiftId);
+        const shift = await db.get<{ startingCash: number }>("SELECT starting_cash as startingCash FROM shifts WHERE id = ?", shiftId);
         if (!shift) {
             return { success: false, error: "Turno no encontrado." };
         }
