@@ -23,31 +23,33 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [shift, setShift] = useState<Shift | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const checkSession = async () => {
-      try {
-        setLoading(true);
-        const savedUser = localStorage.getItem('pos-user');
-        if (savedUser) {
-          const parsedUser: User = JSON.parse(savedUser);
-          setUser(parsedUser);
-
-          const activeShift = await getActiveShiftAction(parsedUser.id);
-          if (activeShift) {
-            setShift(activeShift);
-          }
-        }
-      } catch (error) {
-        console.error("Session check failed", error);
-        localStorage.removeItem('pos-user');
-        setUser(null);
-        setShift(null);
-      } finally {
-        setLoading(false);
+  const checkSession = useCallback(async () => {
+    try {
+      setLoading(true);
+      const savedUser = localStorage.getItem('pos-user');
+      if (savedUser) {
+        const parsedUser: User = JSON.parse(savedUser);
+        setUser(parsedUser);
       }
-    };
-    checkSession();
+      // Check for a global active shift regardless of user
+      const activeShift = await getActiveShiftAction();
+      if (activeShift) {
+        setShift(activeShift);
+      }
+    } catch (error) {
+      console.error("Session check failed", error);
+      localStorage.removeItem('pos-user');
+      setUser(null);
+      setShift(null);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+
+  useEffect(() => {
+    checkSession();
+  }, [checkSession]);
 
   const login = async (username: string, password: string): Promise<User> => {
     const result = await loginAction({ username, password });
@@ -56,7 +58,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       const fullUser = result.user as User;
       setUser(fullUser);
       localStorage.setItem('pos-user', JSON.stringify(fullUser));
-      const activeShift = await getActiveShiftAction(fullUser.id);
+      // Re-check for active shift on login
+      const activeShift = await getActiveShiftAction();
       if (activeShift) {
         setShift(activeShift);
       }
@@ -68,7 +71,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     setUser(null);
-    setShift(null);
+    // Note: We DO NOT clear the shift on logout, as it's a global state.
     localStorage.removeItem('pos-user');
   };
 

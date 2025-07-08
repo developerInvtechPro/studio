@@ -200,12 +200,11 @@ export async function loginAction(credentials: {username: string, password: stri
   }
 }
 
-export async function getActiveShiftAction(userId: number): Promise<Shift | null> {
+export async function getActiveShiftAction(): Promise<Shift | null> {
     try {
         const db = await getDbConnection();
         const shift = await db.get<Shift>(
-            "SELECT id, user_id as userId, start_time as startTime, starting_cash as startingCash, is_active as isActive FROM shifts WHERE user_id = ? AND is_active = 1",
-            userId
+            "SELECT id, user_id as userId, start_time as startTime, starting_cash as startingCash, is_active as isActive FROM shifts WHERE is_active = 1 LIMIT 1"
         );
         return shift || null;
     } catch (error) {
@@ -219,7 +218,7 @@ export async function startShiftAction(userId: number, startingCash: number): Pr
         const db = await getDbConnection();
         const now = new Date().toISOString();
         
-        await db.run("UPDATE shifts SET is_active = 0 WHERE user_id = ? AND is_active = 1", userId);
+        await db.run("UPDATE shifts SET is_active = 0 WHERE is_active = 1");
 
         const result = await db.run(
             "INSERT INTO shifts (user_id, start_time, starting_cash, is_active) VALUES (?, ?, ?, 1)",

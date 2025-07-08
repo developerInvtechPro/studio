@@ -22,6 +22,7 @@ import InvoiceDialog from './InvoiceDialog';
 import HistoryDialog from './HistoryDialog';
 import RecallDialog from './RecallDialog';
 import AdminAuthDialog from './AdminAuthDialog';
+import StartShiftDialog from './StartShiftDialog';
 
 import { 
     getTablesAction,
@@ -68,11 +69,14 @@ export default function PosLayout() {
 
   const [isAdminAuthDialogOpen, setAdminAuthDialogOpen] = useState(false);
   const [adminAuthLoading, setAdminAuthLoading] = useState(false);
+  
+  const [isStartShiftDialogOpen, setStartShiftDialogOpen] = useState(false);
+  const [startShiftLoading, setStartShiftLoading] = useState(false);
 
 
   const { toast } = useToast();
   const [time, setTime] = useState('');
-  const { user, shift, logout, endShift } = useSession();
+  const { user, shift, logout, endShift, startShift } = useSession();
   const router = useRouter();
 
   const fetchTables = useCallback(async () => {
@@ -164,8 +168,8 @@ export default function PosLayout() {
   }, [selectedTable, activeMode, fetchOrderForTable, fetchBarOrder]);
 
   const addProductToOrder = async (product: Product) => {
-    if (!shift) {
-        toast({ variant: 'destructive', title: 'Acción inválida', description: 'No hay un turno activo.' });
+    if (!shift?.isActive) {
+        toast({ variant: 'destructive', title: 'Turno no iniciado', description: 'Por favor, inicie un turno para facturar.' });
         return;
     }
 
@@ -353,8 +357,26 @@ export default function PosLayout() {
 
   const handleEndShift = async () => {
     await endShift();
-    await logout();
-    router.push('/login');
+  };
+
+  const handleStartShift = async (startingCash: number) => {
+    setStartShiftLoading(true);
+    try {
+        await startShift(startingCash);
+        toast({
+            title: 'Turno Iniciado',
+            description: `El turno ha comenzado con L ${startingCash.toFixed(2)} en caja.`,
+        });
+        setStartShiftDialogOpen(false);
+    } catch (error) {
+        toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'No se pudo iniciar el turno.',
+        });
+    } finally {
+        setStartShiftLoading(false);
+    }
   };
 
   const handleReprintLast = async () => {
@@ -484,6 +506,8 @@ export default function PosLayout() {
                 onReprintLast={handleReprintLast}
                 onViewHistory={handleViewHistory}
                 onOpenAdminAuthDialog={() => setAdminAuthDialogOpen(true)}
+                shiftIsActive={!!shift?.isActive}
+                onOpenStartShiftDialog={() => setStartShiftDialogOpen(true)}
             />
         </aside>
       </div>
@@ -609,6 +633,12 @@ export default function PosLayout() {
             onOpenChange={setAdminAuthDialogOpen}
             onConfirm={handleAdminAuth}
             loading={adminAuthLoading}
+        />
+        <StartShiftDialog 
+            isOpen={isStartShiftDialogOpen}
+            onOpenChange={setStartShiftDialogOpen}
+            onConfirm={handleStartShift}
+            loading={startShiftLoading}
         />
     </div>
   );
