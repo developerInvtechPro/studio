@@ -21,42 +21,53 @@ En este modelo, cada computadora ejecuta su propia copia completa de la aplicaci
 
 ### Pasos de Instalación por Máquina
 
+Existen dos maneras de instalarlo: una automática (recomendada) y una manual.
+
+#### Opción A: Instalación Automática (Recomendada para Windows)
+
+Hemos creado un script que hace todo el trabajo pesado por ti.
+
+1.  **Copiar el Proyecto:** Copia toda la carpeta del proyecto BCPOS a la nueva computadora.
+2.  **Ejecutar el Script:** Haz clic derecho en el archivo `setup_windows.bat` y selecciona **"Ejecutar como administrador"**.
+3.  **¡Listo!** El script se encargará de instalar las dependencias, compilar la aplicación para producción, configurar PM2 para que se inicie automáticamente con Windows y arrancar el servidor de BCPOS.
+
+Una vez que termine, puedes acceder al POS abriendo un navegador web (como Google Chrome) en `http://localhost:3000`.
+
+#### Opción B: Instalación Manual
+
+Si prefieres hacerlo paso a paso o el script falla por alguna razón.
+
 1.  **Copiar el Proyecto:** Copia toda la carpeta del proyecto BCPOS a la nueva computadora.
 2.  **Abrir una Terminal:** Navega hasta la carpeta del proyecto en la línea de comandos o terminal.
 3.  **Instalar Dependencias:** Ejecuta el siguiente comando para instalar todas las librerías necesarias.
     ```bash
     npm install
     ```
-4.  **Compilar la Aplicación:** Ejecuta este comando para optimizar el código para producción.
+4.  **Compilar la Aplicación:** Ejecuta este comando para optimizar el código para producción. **Este paso es obligatorio antes de iniciar el servidor.**
     ```bash
     npm run build
     ```
-5.  **Iniciar el Servidor:** Una vez compilado, inicia el servidor de producción.
-    ```bash
-    npm run start
-    ```
-6.  **Acceder al POS:** Abre un navegador web (como Google Chrome) y ve a la dirección: `http://localhost:3000`.
+5.  **Iniciar el Servidor (con PM2 para auto-arranque):** Sigue los pasos de la sección "Hacer que la Aplicación se Inicie Automáticamente" a continuación.
 
-Repite estos pasos en cada computadora donde quieras instalar el POS. Cada instalación tendrá su propio archivo de base de datos (`.db`) y funcionará de forma independiente.
+---
 
-### Paso Adicional: Hacer que la Aplicación se Inicie Automáticamente (Recomendado)
+### Hacer que la Aplicación se Inicie Automáticamente (PM2)
 
-Para evitar tener que iniciar el servidor manualmente cada vez que se reinicia la computadora, se recomienda usar un gestor de procesos como **PM2**.
+Para evitar tener que iniciar el servidor manualmente cada vez que se reinicia la computadora, usamos un gestor de procesos como **PM2**.
 
 **¿Qué es PM2?** Es una herramienta que mantiene tu aplicación funcionando en segundo plano, la reinicia si falla y, lo más importante, puede hacer que se inicie automáticamente con el sistema.
 
-**Pasos de Configuración (se hace una sola vez por equipo):**
+**Pasos de Configuración (se hace una sola vez por equipo si lo haces manualmente):**
 
 1.  **Instalar PM2 Globalmente:** Abre una terminal y ejecuta este comando. En Windows, es recomendable abrir la terminal **como Administrador**.
     ```bash
     npm install pm2 -g
     ```
 
-2.  **Iniciar la Aplicación con PM2:** Desde la carpeta del proyecto, en lugar de `npm run start`, usa este nuevo comando que hemos añadido:
+2.  **Iniciar la Aplicación con PM2:** Desde la carpeta del proyecto, en lugar de `npm run start`, usa este nuevo comando que hemos añadido. Esto leerá el archivo `ecosystem.config.js` que es el método más estable.
     ```bash
     npm run pm2:start
     ```
-    Esto iniciará la aplicación con el nombre `bcpos` (definido en el archivo `ecosystem.config.js`) y la mantendrá corriendo en segundo plano. El uso de `ecosystem.config.js` es el método más estable y recomendado para ejecutar aplicaciones de Next.js, especialmente en Windows.
 
 3.  **Configurar el Inicio Automático (Elige tu Sistema Operativo):**
 

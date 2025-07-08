@@ -1,64 +1,113 @@
-@echo on
-ECHO [PASO 1/5] Solicitando permisos de administrador...
 
-:: BatchGotAdmin
-:-------------------------------------
-REM  --> Check for permissions
->nul 2>&1 "%SYSTEMROOT%\system32\cacls.exe" "%SYSTEMROOT%\system32\config\system"
+@echo off
+:: Solicita privilegios de administrador
+net session >nul 2>&1
+if %errorLevel% neq 0 (
+    echo Solicitando permisos de administrador...
+    powershell -Command "Start-Process '%0' -Verb RunAs"
+    exit /b
+)
 
-REM --> If error flag set, we do not have admin.
-if '%errorlevel%' NEQ '0' (
-    echo Requesting administrative privileges...
-    goto UACPrompt
-) else ( goto gotAdmin )
+echo.
+echo ==========================================================
+echo      INSTALADOR Y CONFIGURADOR DE BCPOS PARA WINDOWS
+echo ==========================================================
+echo.
+echo Este script realizara los siguientes pasos:
+echo 1. Instalara las dependencias del proyecto (npm install).
+echo 2. Compilara la aplicacion para produccion (npm run build).
+echo 3. Instalara PM2 y PM2-Windows-Startup globalmente.
+echo 4. Configurara PM2 para que inicie con Windows.
+echo 5. Iniciara BCPOS con PM2.
+echo 6. Guardara la configuracion de PM2 para los reinicios.
+echo.
+pause
 
-:UACPrompt
-    echo Set UAC = CreateObject^("Shell.Application"^) > "%temp%\getadmin.vbs"
-    echo UAC.ShellExecute "%~s0", "", "", "runas", 1 >> "%temp%\getadmin.vbs"
-    "%temp%\getadmin.vbs"
-    del "%temp%\getadmin.vbs"
-    exit /B
+:: Paso 1: Instalar dependencias
+echo.
+echo --- [PASO 1 de 4] Instalando dependencias del proyecto... ---
+call npm install
+if %errorLevel% neq 0 (
+    echo.
+    echo [ERROR] Hubo un problema al instalar las dependencias con 'npm install'.
+    pause
+    exit /b
+)
+echo.
+echo --- Dependencias instaladas correctamente. ---
 
-:gotAdmin
-    pushd "%CD%"
-    CD /D "%~dp0"
-:--------------------------------------
+:: Paso 2: Compilar la aplicacion
+echo.
+echo --- [PASO 2 de 4] Compilando la aplicacion para produccion... ---
+call npm run build
+if %errorLevel% neq 0 (
+    echo.
+    echo [ERROR] Hubo un problema al compilar la aplicacion con 'npm run build'.
+    pause
+    exit /b
+)
+echo.
+echo --- Aplicacion compilada correctamente. ---
 
-ECHO [PASO 2/5] Instalando PM2 globalmente...
-npm install pm2 -g
+:: Paso 3: Instalar PM2 y configurar el inicio automatico
+echo.
+echo --- [PASO 3 de 4] Instalando y configurando PM2... ---
+echo Instalando PM2...
+call npm install pm2 -g
+echo Instalando el servicio de arranque de PM2 para Windows...
+call npm install pm2-windows-startup -g
+echo Configurando el servicio de arranque...
+call pm2-startup install
+if %errorLevel% neq 0 (
+    echo.
+    echo [ERROR] Hubo un problema al configurar el servicio de arranque de PM2.
+    pause
+    exit /b
+)
+echo.
+echo --- PM2 configurado correctamente. ---
 
-ECHO [PASO 3/5] Instalando el gestor de inicio de PM2 para Windows...
-npm install pm2-windows-startup -g
-pm2-startup install
+:: Paso 4: Iniciar y guardar la aplicacion con PM2
+echo.
+echo --- [PASO 4 de 4] Iniciando BCPOS y guardando la configuracion... ---
+echo Eliminando cualquier instancia anterior de 'bcpos' para asegurar un inicio limpio...
+call pm2 delete bcpos >nul 2>&1
 
-ECHO [PASO 4/5] Preparando y arrancando BCPOS con PM2...
-ECHO.
-ECHO    (Puede que vea un error si 'bcpos' no existe, es normal)
-pm2 delete bcpos
-ECHO.
-ECHO    Iniciando la aplicacion...
-pm2 start ecosystem.config.js
-ECHO.
-ECHO    Esperando 5 segundos para que la aplicacion se estabilice...
-timeout /t 5 /nobreak
+echo Iniciando la aplicacion 'bcpos'...
+call npm run pm2:start
+if %errorLevel% neq 0 (
+    echo.
+    echo [ERROR] Hubo un problema al iniciar la aplicacion con PM2.
+    pause
+    exit /b
+)
 
-ECHO [PASO 5/5] Guardando la configuracion y mostrando estado final...
-pm2 save
-ECHO.
-ECHO    Estado actual de la aplicacion:
-pm2 list
-ECHO.
+echo Esperando 5 segundos para que el servidor se estabilice...
+timeout /t 5 /nobreak >nul
 
-ECHO ==========================================================
-ECHO.
-ECHO  INSTALACION COMPLETADA!
-ECHO.
-ECHO  BCPOS deberia estar en estado 'online'.
-ECHO  Si el estado es 'stopped' o 'errored', revise los logs con: pm2 logs bcpos
-ECHO.
-ECHO  Puedes acceder a la aplicacion en: http://localhost:3000
-ECHO.
-ECHO ==========================================================
-ECHO.
+echo Guardando la lista de procesos para el reinicio automatico...
+call pm2 save
+if %errorLevel% neq 0 (
+    echo.
+    echo [ERROR] Hubo un problema al guardar la configuracion de PM2.
+    pause
+    exit /b
+)
+echo.
+echo --- Proceso guardado. ---
+echo.
 
+:: Mostrar estado final
+echo.
+echo ==========================================================
+echo          PROCESO DE INSTALACION FINALIZADO
+echo ==========================================================
+echo.
+echo BCPOS deberia estar corriendo. Verificando el estado:
+echo.
+call pm2 list
+echo.
+echo Si el estado de 'bcpos' es 'online', la instalacion fue exitosa.
+echo Puedes acceder al POS en tu navegador en: http://localhost:3000
+echo.
 pause
