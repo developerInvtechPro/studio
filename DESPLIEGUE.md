@@ -53,7 +53,7 @@ Si prefieres hacerlo paso a paso o el script falla por alguna razón.
 
 ### Hacer que la Aplicación se Inicie Automáticamente (PM2)
 
-Para evitar tener que iniciar el servidor manually cada vez que se reinicia la computadora, usamos un gestor de procesos como **PM2**.
+Para evitar tener que iniciar el servidor manualmente cada vez que se reinicia la computadora, usamos un gestor de procesos como **PM2**.
 
 **¿Qué es PM2?** Es una herramienta que mantiene tu aplicación funcionando en segundo plano, la reinicia si falla y, lo más importante, puede hacer que se inicie automáticamente con el sistema.
 
@@ -102,13 +102,14 @@ Para evitar tener que iniciar el servidor manually cada vez que se reinicia la c
 
 **Nota importante:** Si detienes la aplicación manualmente con `npm run pm2:stop`, esta permanecerá detenida durante la sesión. El reinicio automático solo se aplicará la próxima vez que se encienda el equipo.
 
-**Comandos Útiles de PM2:**
+#### ¿Por qué usar PM2 en lugar de una Tarea Programada de Windows?
 
-*   `pm2 list`: Muestra el estado de la aplicación `bcpos`.
-*   `npm run pm2:stop`: Detiene la aplicación.
-*   `pm2 restart bcpos`: Reinicia la aplicación si haces cambios.
-*   `pm2 logs bcpos`: Muestra los registros (logs) por si ocurre algún error.
-*   `pm2-startup uninstall` (Solo Windows): Desinstala el servicio de inicio automático.
+Aunque usar una Tarea Programada para ejecutar un script `.bat` al inicio es una solución válida, PM2 ofrece ventajas cruciales para un sistema como un punto de venta:
+*   **Robustez (Reinicio Automático):** Si la aplicación se cierra inesperadamente por un error, PM2 la reiniciará automáticamente en segundos. Una tarea programada solo se ejecuta al inicio; si la app falla después, permanecerá caída.
+*   **Monitoreo y Gestión:** PM2 te permite ver fácilmente el estado de tu aplicación, su consumo de CPU y memoria con el comando `pm2 list`.
+*   **Logs Centralizados:** Con `pm2 logs bcpos` puedes ver todos los registros (y errores) de la aplicación en un solo lugar, facilitando enormemente la solución de problemas.
+
+En resumen, PM2 no solo inicia la aplicación, sino que la **vigila y la gestiona**, asegurando una mayor estabilidad.
 
 ---
 
