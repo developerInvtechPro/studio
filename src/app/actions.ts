@@ -3,7 +3,7 @@
 
 import type { SmartUpsellInput } from '@/ai/flows/smart-upsell';
 import type { BudgetTrackingInput } from '@/ai/flows/ai-powered-budget-and-profitability-tracking';
-import type { User, Category, Product, Table, Shift, Order, OrderItem, Customer, PaymentMethod, Payment } from '@/lib/types';
+import type { User, Category, Product, Table, Shift, Order, OrderItem, Customer, PaymentMethod, Payment, CompletedOrderInfo } from '@/lib/types';
 import { getDbConnection } from '@/lib/db';
 import { getSmartUpsellRecommendations } from '@/ai/flows/smart-upsell';
 import { aiPoweredBudgetAndProfitabilityTracking } from '@/ai/flows/ai-powered-budget-and-profitability-tracking';
@@ -648,7 +648,7 @@ export async function getShiftSummaryAction(shiftId: number): Promise<{ success:
         const orders = await db.all<{ total_amount: number; discount_amount: number; }>("SELECT total_amount, discount_amount FROM orders WHERE shift_id = ? AND status = 'completed'", shiftId);
         
         const totalSales = orders.reduce((sum, o) => sum + o.total_amount, 0);
-        const totalDiscounts = orders.reduce((sum, o) => sum + o.discount_amount, 0);
+        const totalDiscounts = orders.reduce((sum, o) => sum + (o.discount_amount || 0), 0);
         const totalOrders = orders.length;
 
         const payments = await db.all<{ name: string, total: number }>(
@@ -677,6 +677,61 @@ export async function getShiftSummaryAction(shiftId: number): Promise<{ success:
     } catch (error: any) {
         console.error("Failed to get shift summary:", error);
         return { success: false, error: "No se pudo generar el resumen del turno." };
+    }
+}
+
+export async function getCompletedOrdersForShiftAction(shiftId: number): Promise<{ success: boolean; data?: CompletedOrderInfo[]; error?: string }> {
+    try {
+        const db = await getDbConnection();
+        const orders = await db.all<CompletedOrderInfo[]>(
+            `SELECT id, customer_name, total_amount, created_at
+             FROM orders
+             WHERE shift_id = ? AND status = 'completed'
+             ORDER BY created_at DESC`,
+            shiftId
+        );
+        return { success: true, data: orders };
+    } catch (error: any) {
+        console.error("Failed to get completed orders for shift:", error);
+        return { success: false, error: "No se pudo obtener el historial de órdenes." };
+    }
+}
+
+export async function getOrderDetailsAction(orderId: number): Promise<{ success: boolean; data?: Order; error?: string }> {
+    try {
+        const db = await getDbConnection();
+        const order = await getOrderFromDb(db, orderId);
+        if (!order) {
+            return { success: false, error: "Orden no encontrada." };
+        }
+        return { success: true, data: order };
+    } catch (error: any) {
+        console.error("Failed to get order details:", error);
+        return { success: false, error: "No se pudo obtener el detalle de la orden." };
+    }
+}
+
+export async function getLastCompletedOrderAction(shiftId: number): Promise<{ success: boolean; data?: Order; error?: string }> {
+    try {
+        const db = await getDbConnection();
+        const lastOrderHeader = await db.get<{ id: number }>(
+            "SELECT id FROM orders WHERE shift_id = ? AND status = 'completed' ORDER BY id DESC LIMIT 1",
+            shiftId
+        );
+        
+        if (!lastOrderHeader) {
+            return { success: false, error: "No se encontró la última orden completada." };
+        }
+        
+        const order = await getOrderFromDb(db, lastOrderHeader.id);
+        if (!order) {
+             return { success: false, error: "No se pudo cargar el detalle de la última orden." };
+        }
+
+        return { success: true, data: order };
+    } catch (error: any) {
+        console.error("Failed to get last completed order:", error);
+        return { success: false, error: "No se pudo obtener la última orden." };
     }
 }
 // #endregion

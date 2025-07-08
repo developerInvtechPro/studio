@@ -1,4 +1,5 @@
 
+
 export interface Product {
   id: number;
   name: string;
@@ -78,3 +79,10 @@ export type Payment = {
     paymentMethodId: number;
     amount: number;
 };
+
+export interface CompletedOrderInfo {
+  id: number;
+  customer_name: string | null;
+  total_amount: number;
+  created_at: string;
+}

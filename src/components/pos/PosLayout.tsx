@@ -18,6 +18,8 @@ import CheckoutDialog from './CheckoutDialog';
 import CustomerSelectionDialog from './CustomerSelectionDialog';
 import ShiftSummaryDialog from './ShiftSummaryDialog';
 import SystemActions from './SystemActions';
+import InvoiceDialog from './InvoiceDialog';
+import HistoryDialog from './HistoryDialog';
 
 import { 
     getTablesAction,
@@ -32,7 +34,8 @@ import {
     getOpenBarOrder,
     addItemToBarOrder,
     assignCustomerToOrderAction,
-    processPaymentAction
+    getLastCompletedOrderAction,
+    getOrderDetailsAction,
 } from '@/app/actions';
 
 export default function PosLayout() {
@@ -53,6 +56,9 @@ export default function PosLayout() {
   const [isCheckoutDialogOpen, setCheckoutDialogOpen] = useState(false);
   const [isCustomerDialogOpen, setCustomerDialogOpen] = useState(false);
   const [isShiftSummaryDialogOpen, setShiftSummaryDialogOpen] = useState(false);
+  const [isInvoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
+  const [isHistoryDialogOpen, setHistoryDialogOpen] = useState(false);
+  const [invoiceOrder, setInvoiceOrder] = useState<Order | null>(null);
 
 
   const { toast } = useToast();
@@ -298,6 +304,32 @@ export default function PosLayout() {
     router.push('/login');
   };
 
+  const handleReprintLast = async () => {
+    if (!shift) return;
+    const result = await getLastCompletedOrderAction(shift.id);
+    if (result.success && result.data) {
+        setInvoiceOrder(result.data);
+        setInvoiceDialogOpen(true);
+    } else {
+        toast({ variant: 'destructive', title: 'Error', description: result.error || 'No se encontró la última factura.' });
+    }
+  };
+
+  const handleViewHistory = () => {
+      setHistoryDialogOpen(true);
+  };
+
+  const handleViewOrderDetails = async (orderId: number) => {
+      const result = await getOrderDetailsAction(orderId);
+      if (result.success && result.data) {
+          setInvoiceOrder(result.data);
+          setHistoryDialogOpen(false); 
+          setInvoiceDialogOpen(true); 
+      } else {
+          toast({ variant: 'destructive', title: 'Error', description: result.error || 'No se pudo cargar la factura.' });
+      }
+  };
+
   return (
     <div className="h-screen w-screen flex flex-col font-sans text-sm">
       <div className="flex flex-1 overflow-hidden">
@@ -342,6 +374,8 @@ export default function PosLayout() {
                 onOpenShiftSummaryDialog={() => setShiftSummaryDialogOpen(true)}
                 onEndShift={handleEndShift}
                 onLogout={handleLogout}
+                onReprintLast={handleReprintLast}
+                onViewHistory={handleViewHistory}
             />
         </aside>
       </div>
@@ -444,6 +478,17 @@ export default function PosLayout() {
             isOpen={isShiftSummaryDialogOpen}
             onOpenChange={setShiftSummaryDialogOpen}
             shift={shift}
+        />
+        <InvoiceDialog 
+            isOpen={isInvoiceDialogOpen}
+            onOpenChange={setInvoiceDialogOpen}
+            order={invoiceOrder}
+        />
+        <HistoryDialog
+            isOpen={isHistoryDialogOpen}
+            onOpenChange={setHistoryDialogOpen}
+            shift={shift}
+            onViewDetails={handleViewOrderDetails}
         />
     </div>
   );
