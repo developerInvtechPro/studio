@@ -32,7 +32,6 @@ const formSchema = z.object({
     required_error: "Debe seleccionar un estado.",
   }),
 }).refine(data => {
-    // Remove hyphens and parse as number for comparison
     const start = parseInt(data.range_start.replace(/-/g, ''), 10);
     const end = parseInt(data.range_end.replace(/-/g, ''), 10);
     return !isNaN(start) && !isNaN(end) && end > start;
@@ -181,9 +180,6 @@ export default function CaiFormDialog({ isOpen, onOpenChange, caiRecord, onRecor
                                 mode="single"
                                 selected={field.value}
                                 onSelect={field.onChange}
-                                disabled={(date) =>
-                                 date < new Date("1900-01-01")
-                                }
                                 initialFocus
                             />
                             </PopoverContent>
@@ -222,9 +218,6 @@ export default function CaiFormDialog({ isOpen, onOpenChange, caiRecord, onRecor
                                 mode="single"
                                 selected={field.value}
                                 onSelect={field.onChange}
-                                disabled={(date) =>
-                                 date < new Date("1900-01-01")
-                                }
                                 initialFocus
                             />
                             </PopoverContent>
