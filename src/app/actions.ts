@@ -797,6 +797,13 @@ export async function saveProductAction(product: Omit<Product, 'id'> & { id?: nu
         const db = await getDbConnection();
         const { id, name, price, categoryId, unitOfMeasureSale, unitOfMeasurePurchase, isActive, taxRate } = product;
 
+        const getProductQuery = `
+            SELECT id, name, price, category_id as categoryId, image_url as imageUrl, image_hint as imageHint,
+            unit_of_measure_sale as unitOfMeasureSale, unit_of_measure_purchase as unitOfMeasurePurchase,
+            is_active as isActive, tax_rate as taxRate
+            FROM products WHERE id = ?
+        `;
+
         if (id) {
             // Update existing product
             await db.run(
@@ -804,7 +811,8 @@ export async function saveProductAction(product: Omit<Product, 'id'> & { id?: nu
                  unit_of_measure_purchase = ?, is_active = ?, tax_rate = ? WHERE id = ?`,
                 name, price, categoryId, unitOfMeasureSale, unitOfMeasurePurchase, isActive, taxRate, id
             );
-            return { success: true, data: { ...product, id } };
+            const updatedProduct = await db.get<Product>(getProductQuery, id);
+            return { success: true, data: updatedProduct };
         } else {
             // Create new product
             const result = await db.run(
@@ -813,7 +821,8 @@ export async function saveProductAction(product: Omit<Product, 'id'> & { id?: nu
                 name, price, categoryId, unitOfMeasureSale, unitOfMeasurePurchase, isActive, taxRate, 'https://placehold.co/200x200.png', name
             );
             const newId = result.lastID!;
-            return { success: true, data: { ...product, id: newId } };
+            const newProduct = await db.get<Product>(getProductQuery, newId);
+            return { success: true, data: newProduct };
         }
     } catch (error: any) {
         console.error("Failed to save product:", error);
