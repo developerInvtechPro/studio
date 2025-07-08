@@ -3,7 +3,7 @@
 
 import type { SmartUpsellInput } from '@/ai/flows/smart-upsell';
 import type { BudgetTrackingInput } from '@/ai/flows/ai-powered-budget-and-profitability-tracking';
-import type { User, Category, Product, Table, Shift, Order, OrderItem, Customer, PaymentMethod, CompletedOrderInfo, CompanyInfo, Supplier, Payment } from '@/lib/types';
+import type { User, Category, Product, Table, Shift, Order, OrderItem, Customer, PaymentMethod, CompletedOrderInfo, CompanyInfo, Supplier, Payment, CaiRecord } from '@/lib/types';
 import { getDbConnection } from '@/lib/db';
 import { getSmartUpsellRecommendations } from '@/ai/flows/smart-upsell';
 import { aiPoweredBudgetAndProfitabilityTracking } from '@/ai/flows/ai-powered-budget-and-profitability-tracking';
@@ -948,6 +948,65 @@ export async function saveCategoryAction(category: Omit<Category, 'id'> & { id?:
     } catch (error: any) {
         console.error("Failed to save category:", error);
         return { success: false, error: "No se pudo guardar la categoría." };
+    }
+}
+
+export async function getCaiRecordsAction(): Promise<CaiRecord[]> {
+    try {
+        const db = await getDbConnection();
+        return db.all<CaiRecord[]>("SELECT * FROM cai_records ORDER BY issue_date DESC");
+    } catch (error) {
+        console.error("Failed to get CAI records:", error);
+        return [];
+    }
+}
+
+export async function saveCaiRecordAction(caiRecord: Omit<CaiRecord, 'id' | 'current_invoice_number'> & { id?: number, current_invoice_number?: number | null }): Promise<{ success: boolean; data?: CaiRecord; error?: string }> {
+    try {
+        const db = await getDbConnection();
+        const { id, cai, range_start, range_end, issue_date, expiration_date, status } = caiRecord;
+
+        if (!cai || !range_start || !range_end || !issue_date || !expiration_date || !status) {
+            return { success: false, error: "Todos los campos son requeridos." };
+        }
+        if (range_start >= range_end) {
+            return { success: false, error: "El rango inicial debe ser menor que el rango final." };
+        }
+
+        if (status === 'active') {
+            await db.run("UPDATE cai_records SET status = 'inactive' WHERE status = 'active' AND id != ?", id || 0);
+        }
+
+        let lastId = id;
+        
+        if (id) {
+            await db.run(
+                `UPDATE cai_records SET cai = ?, range_start = ?, range_end = ?, issue_date = ?, expiration_date = ?, status = ? WHERE id = ?`,
+                cai, range_start, range_end, issue_date, expiration_date, status, id
+            );
+        } else {
+            const result = await db.run(
+                `INSERT INTO cai_records (cai, range_start, range_end, current_invoice_number, issue_date, expiration_date, status) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                cai, range_start, range_end, range_start, issue_date, expiration_date, status
+            );
+            lastId = result.lastID!;
+        }
+
+        if (!lastId) {
+            return { success: false, error: 'Could not determine CAI record ID after save.' };
+        }
+
+        const savedRecord = await db.get<CaiRecord>("SELECT * FROM cai_records WHERE id = ?", lastId);
+
+        if (!savedRecord) {
+            return { success: false, error: 'Could not retrieve CAI record after saving.' };
+        }
+
+        return { success: true, data: savedRecord };
+
+    } catch (error: any) {
+        console.error("Failed to save CAI record:", error);
+        return { success: false, error: "No se pudo guardar el registro CAI." };
     }
 }
 // #endregion

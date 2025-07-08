@@ -1,8 +1,12 @@
 
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { getCaiRecordsAction } from "@/app/actions";
+import CaiDataTable from "@/components/admin/CaiDataTable";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileKey } from "lucide-react";
 
-export default function CaiPage() {
+export default async function CaiPage() {
+  const initialRecords = await getCaiRecordsAction();
+
   return (
     <Card>
       <CardHeader>
@@ -15,7 +19,7 @@ export default function CaiPage() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <p>Esta función estará disponible próximamente.</p>
+        <CaiDataTable initialRecords={initialRecords} />
       </CardContent>
     </Card>
   );
