@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -11,7 +10,6 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Table, TableBody, TableCell, TableRow, TableHead, TableHeader } from '@/components/ui/table';
 import Spinner from '@/components/ui/spinner';
 import { searchCustomersAction } from '@/app/actions';
-import CreateCustomerDialog from './CreateCustomerDialog';
 import CustomerFormDialog from '@/components/shared/CustomerFormDialog';
 import { Edit } from 'lucide-react';
 
@@ -26,8 +24,7 @@ export default function CustomerSelectionDialog({ isOpen, onOpenChange, onCustom
   const debouncedQuery = useDebounce(query, 300);
   const [results, setResults] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(false);
-  const [isCreateCustomerOpen, setCreateCustomerOpen] = useState(false);
-  const [isEditCustomerOpen, setEditCustomerOpen] = useState(false);
+  const [isFormOpen, setFormOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
 
   const fetchCustomers = useCallback(() => {
@@ -50,26 +47,19 @@ export default function CustomerSelectionDialog({ isOpen, onOpenChange, onCustom
     }
   }, [isOpen]);
   
-  const handleCustomerCreated = (newCustomer: Customer) => {
-    setResults([newCustomer, ...results]);
-    setCreateCustomerOpen(false);
-  };
-  
-  const handleEditCustomer = (customer: Customer) => {
+  const handleEditClick = (customer: Customer) => {
     setSelectedCustomer(customer);
-    setEditCustomerOpen(true);
-  };
+    setFormOpen(true);
+  }
+
+  const handleNewClick = () => {
+    setSelectedCustomer(null);
+    setFormOpen(true);
+  }
 
   const onCustomerSaved = (savedCustomer: Customer) => {
-    const existingIndex = results.findIndex(c => c.id === savedCustomer.id);
-    if (existingIndex > -1) {
-      const updatedCustomers = [...results];
-      updatedCustomers[existingIndex] = savedCustomer;
-      setResults(updatedCustomers);
-    } else {
-      setResults([savedCustomer, ...results]);
-    }
-    setEditCustomerOpen(false);
+    fetchCustomers(); // Refetch to show the latest data
+    setFormOpen(false);
   };
 
   return (
@@ -89,7 +79,7 @@ export default function CustomerSelectionDialog({ isOpen, onOpenChange, onCustom
               onChange={(e) => setQuery(e.target.value)}
               autoFocus
             />
-            <Button onClick={() => setCreateCustomerOpen(true)}>Crear Nuevo</Button>
+            <Button onClick={handleNewClick}>Crear Nuevo</Button>
           </div>
           <ScrollArea className="h-[50vh] border rounded-md">
             <div className="relative p-2">
@@ -118,7 +108,7 @@ export default function CustomerSelectionDialog({ isOpen, onOpenChange, onCustom
                           <Button 
                             variant="ghost" 
                             size="icon" 
-                            onClick={(e) => { e.stopPropagation(); handleEditCustomer(customer); }}
+                            onClick={(e) => { e.stopPropagation(); handleEditClick(customer); }}
                           >
                               <Edit className="h-4 w-4" />
                           </Button>
@@ -137,15 +127,9 @@ export default function CustomerSelectionDialog({ isOpen, onOpenChange, onCustom
         </DialogContent>
       </Dialog>
       
-      <CreateCustomerDialog
-        isOpen={isCreateCustomerOpen}
-        onOpenChange={setCreateCustomerOpen}
-        onCustomerCreated={handleCustomerCreated}
-      />
-
       <CustomerFormDialog
-        isOpen={isEditCustomerOpen}
-        onOpenChange={setEditCustomerOpen}
+        isOpen={isFormOpen}
+        onOpenChange={setFormOpen}
         customer={selectedCustomer}
         onCustomerSaved={onCustomerSaved}
       />
