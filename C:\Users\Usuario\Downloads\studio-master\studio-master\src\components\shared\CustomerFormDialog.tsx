@@ -65,7 +65,11 @@ export default function CustomerFormDialog({ isOpen, onOpenChange, customer, onC
         ...data, 
         id: customer?.id 
     };
+    
+    // In admin, we use saveCustomerAction, in POS we use createCustomerAction
+    // Let's use the more general one.
     const result = await saveCustomerAction(customerToSave);
+
     if (result.success && result.data) {
       toast({ title: 'Éxito', description: `Cliente ${customer ? 'actualizado' : 'creado'} correctamente.` });
       onCustomerSaved(result.data);
