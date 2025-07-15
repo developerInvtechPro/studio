@@ -6,7 +6,7 @@ import type { Customer } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableRow, TableHead, TableHeader } from '@/components/ui/table';
 import { Edit } from 'lucide-react';
-import CustomerFormDialog from './CustomerFormDialog';
+import CustomerFormDialog from '@/components/shared/CustomerFormDialog';
 
 interface CustomersDataTableProps {
   initialCustomers: Customer[];
