@@ -102,8 +102,8 @@ export default function CustomerSelectionDialog({ isOpen, onOpenChange, onCustom
                         onClick={() => onCustomerSelect(customer)}
                       >
                         <TableCell className="font-medium">{customer.name}</TableCell>
-                        <TableCell>{customer.rtn}</TableCell>
-                        <TableCell>{customer.phone}</TableCell>
+                        <TableCell>{customer.rtn || 'N/A'}</TableCell>
+                        <TableCell>{customer.phone || 'N/A'}</TableCell>
                         <TableCell className="text-right">
                           <Button 
                             variant="ghost" 
