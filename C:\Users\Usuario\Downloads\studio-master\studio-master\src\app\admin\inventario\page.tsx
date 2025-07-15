@@ -1,8 +1,13 @@
 
+import { getAdminProductsAction, getCategoriesAction } from "@/app/actions";
+import InventoryDataTable from "@/components/admin/InventoryDataTable";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Warehouse } from "lucide-react";
 
-export default function InventarioPage() {
+export default async function InventarioPage() {
+  const initialProducts = await getAdminProductsAction();
+  const categories = await getCategoriesAction();
+
   return (
     <Card>
       <CardHeader>
@@ -11,11 +16,11 @@ export default function InventarioPage() {
             <CardTitle>Reporte de Inventario</CardTitle>
         </div>
         <CardDescription>
-          Consulte las existencias actuales de sus productos.
+          Consulte las existencias actuales de sus productos y el valor total de su inventario.
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <p>Esta función estará disponible próximamente.</p>
+        <InventoryDataTable initialProducts={initialProducts} categories={categories} />
       </CardContent>
     </Card>
   );
