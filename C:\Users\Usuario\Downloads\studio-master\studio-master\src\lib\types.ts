@@ -137,8 +137,8 @@ export interface FullInvoiceData {
 
 
 export interface PurchaseInvoiceItem {
-    id: number; // This is a temporary ID for the frontend
-    product: Product;
+    productId: number;
+    productName: string;
     quantity: number;
     cost: number;
 }

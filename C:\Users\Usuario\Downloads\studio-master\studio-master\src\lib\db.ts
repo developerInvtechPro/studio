@@ -29,31 +29,31 @@ const defaultCategories = [
   { id: 16, name: 'Vegan', iconName: 'Vegan' },
 ];
 
-const defaultProducts: Omit<Product, 'icon' | 'unitOfMeasurePurchase' | 'unitOfMeasureSale' | 'isActive' | 'taxRate' >[] = [
-  { id: 1, name: 'Espresso', price: 2.5, categoryId: 1, imageUrl: 'https://placehold.co/200x200.png', imageHint: 'espresso shot' },
-  { id: 2, name: 'Latte', price: 3.5, categoryId: 1, imageUrl: 'https://placehold.co/200x200.png', imageHint: 'latte art' },
-  { id: 3, name: 'Cappuccino', price: 3.5, categoryId: 1, imageUrl: 'https://placehold.co/200x200.png', imageHint: 'cappuccino foam' },
-  { id: 4, name: 'Americano', price: 3.0, categoryId: 1, imageUrl: 'https://placehold.co/200x200.png', imageHint: 'black coffee' },
-  { id: 5, name: 'Mocha', price: 4.0, categoryId: 1, imageUrl: 'https://placehold.co/200x200.png', imageHint: 'chocolate coffee' },
-  { id: 6, name: 'Croissant', price: 2.0, categoryId: 2, imageUrl: 'https://placehold.co/200x200.png', imageHint: 'buttery croissant' },
-  { id: 7, name: 'Muffin', price: 2.5, categoryId: 2, imageUrl: 'https://placehold.co/200x200.png', imageHint: 'blueberry muffin' },
-  { id: 8, name: 'Cinnamon Roll', price: 3.0, categoryId: 2, imageUrl: 'https://placehold.co/200x200.png', imageHint: 'iced cinnamon' },
-  { id: 11, name: 'Turkey Club', price: 7.5, categoryId: 3, imageUrl: 'https://placehold.co/200x200.png', imageHint: 'turkey sandwich' },
-  { id: 12, name: 'Ham & Cheese', price: 6.5, categoryId: 3, imageUrl: 'https://placehold.co/200x200.png', imageHint: 'ham cheese' },
-  { id: 15, name: 'Orange Juice', price: 3.0, categoryId: 4, imageUrl: 'https://placehold.co/200x200.png', imageHint: 'fresh juice' },
-  { id: 16, name: 'Iced Tea', price: 2.5, categoryId: 4, imageUrl: 'https://placehold.co/200x200.png', imageHint: 'iced tea' },
-  { id: 19, name: 'Caesar Salad', price: 8.0, categoryId: 5, imageUrl: 'https://placehold.co/200x200.png', imageHint: 'caesar salad' },
-  { id: 21, name: 'Tomato Soup', price: 5.0, categoryId: 6, imageUrl: 'https://placehold.co/200x200.png', imageHint: 'tomato soup' },
-  { id: 23, name: 'Cheesecake', price: 4.5, categoryId: 7, imageUrl: 'https://placehold.co/200x200.png', imageHint: 'slice cheesecake' },
-  { id: 25, name: 'Caramel Frappe', price: 4.5, categoryId: 8, imageUrl: 'https://placehold.co/200x200.png', imageHint: 'caramel frappe' },
-  { id: 27, name: 'French Fries', price: 3.0, categoryId: 9, imageUrl: 'https://placehold.co/200x200.png', imageHint: 'french fries' },
-  { id: 29, name: 'Strawberry Banana', price: 5.0, categoryId: 10, imageUrl: 'https://placehold.co/200x200.png', imageHint: 'strawberry smoothie' },
-  { id: 31, name: 'Green Tea', price: 2.5, categoryId: 11, imageUrl: 'https://placehold.co/200x200.png', imageHint: 'green tea' },
-  { id: 33, name: 'Daily Special', price: 9.0, categoryId: 12, imageUrl: 'https://placehold.co/200x200.png', imageHint: 'daily special' },
-  { id: 35, name: 'Breakfast Burrito', price: 6.0, categoryId: 13, imageUrl: 'https://placehold.co/200x200.png', imageHint: 'breakfast burrito' },
-  { id: 37, name: 'Coffee & Croissant', price: 4.0, categoryId: 14, imageUrl: 'https://placehold.co/200x200.png', imageHint: 'coffee croissant' },
-  { id: 39, name: 'Beer (Local)', price: 5.0, categoryId: 15, imageUrl: 'https://placehold.co/200x200.png', imageHint: 'craft beer' },
-  { id: 41, name: 'Vegan Wrap', price: 7.0, categoryId: 16, imageUrl: 'https://placehold.co/200x200.png', imageHint: 'vegan wrap' },
+const defaultProducts: Omit<Product, 'id' | 'stock' | 'cost_price' | 'unitOfMeasurePurchase' | 'unitOfMeasureSale' | 'isActive' | 'taxRate' >[] = [
+  { name: 'Espresso', price: 2.5, categoryId: 1, imageUrl: 'https://placehold.co/200x200.png', imageHint: 'espresso shot' },
+  { name: 'Latte', price: 3.5, categoryId: 1, imageUrl: 'https://placehold.co/200x200.png', imageHint: 'latte art' },
+  { name: 'Cappuccino', price: 3.5, categoryId: 1, imageUrl: 'https://placehold.co/200x200.png', imageHint: 'cappuccino foam' },
+  { name: 'Americano', price: 3.0, categoryId: 1, imageUrl: 'https://placehold.co/200x200.png', imageHint: 'black coffee' },
+  { name: 'Mocha', price: 4.0, categoryId: 1, imageUrl: 'https://placehold.co/200x200.png', imageHint: 'chocolate coffee' },
+  { name: 'Croissant', price: 2.0, categoryId: 2, imageUrl: 'https://placehold.co/200x200.png', imageHint: 'buttery croissant' },
+  { name: 'Muffin', price: 2.5, categoryId: 2, imageUrl: 'https://placehold.co/200x200.png', imageHint: 'blueberry muffin' },
+  { name: 'Cinnamon Roll', price: 3.0, categoryId: 2, imageUrl: 'https://placehold.co/200x200.png', imageHint: 'iced cinnamon' },
+  { name: 'Turkey Club', price: 7.5, categoryId: 3, imageUrl: 'https://placehold.co/200x200.png', imageHint: 'turkey sandwich' },
+  { name: 'Ham & Cheese', price: 6.5, categoryId: 3, imageUrl: 'https://placehold.co/200x200.png', imageHint: 'ham cheese' },
+  { name: 'Orange Juice', price: 3.0, categoryId: 4, imageUrl: 'https://placehold.co/200x200.png', imageHint: 'fresh juice' },
+  { name: 'Iced Tea', price: 2.5, categoryId: 4, imageUrl: 'https://placehold.co/200x200.png', imageHint: 'iced tea' },
+  { name: 'Caesar Salad', price: 8.0, categoryId: 5, imageUrl: 'https://placehold.co/200x200.png', imageHint: 'caesar salad' },
+  { name: 'Tomato Soup', price: 5.0, categoryId: 6, imageUrl: 'https://placehold.co/200x200.png', imageHint: 'tomato soup' },
+  { name: 'Cheesecake', price: 4.5, categoryId: 7, imageUrl: 'https://placehold.co/200x200.png', imageHint: 'slice cheesecake' },
+  { name: 'Caramel Frappe', price: 4.5, categoryId: 8, imageUrl: 'https://placehold.co/200x200.png', imageHint: 'caramel frappe' },
+  { name: 'French Fries', price: 3.0, categoryId: 9, imageUrl: 'https://placehold.co/200x200.png', imageHint: 'french fries' },
+  { name: 'Strawberry Banana', price: 5.0, categoryId: 10, imageUrl: 'https://placehold.co/200x200.png', imageHint: 'strawberry smoothie' },
+  { name: 'Green Tea', price: 2.5, categoryId: 11, imageUrl: 'https://placehold.co/200x200.png', imageHint: 'green tea' },
+  { name: 'Daily Special', price: 9.0, categoryId: 12, imageUrl: 'https://placehold.co/200x200.png', imageHint: 'daily special' },
+  { name: 'Breakfast Burrito', price: 6.0, categoryId: 13, imageUrl: 'https://placehold.co/200x200.png', imageHint: 'breakfast burrito' },
+  { name: 'Coffee & Croissant', price: 4.0, categoryId: 14, imageUrl: 'https://placehold.co/200x200.png', imageHint: 'coffee croissant' },
+  { name: 'Beer (Local)', price: 5.0, categoryId: 15, imageUrl: 'https://placehold.co/200x200.png', imageHint: 'craft beer' },
+  { name: 'Vegan Wrap', price: 7.0, categoryId: 16, imageUrl: 'https://placehold.co/200x200.png', imageHint: 'vegan wrap' },
 ];
 
 
@@ -86,7 +86,7 @@ const initializeDb = async () => {
     }
     
     if (!productsTableInfo.some(col => col.name === 'cost_price')) {
-        await db.exec('ALTER TABLE products ADD COLUMN cost_price REAL');
+        await db.exec('ALTER TABLE products ADD COLUMN cost_price REAL;');
     }
 
     await db.exec(`
@@ -258,9 +258,9 @@ const initializeDb = async () => {
         }
         await catStmt.finalize();
 
-        const prodStmt = await db.prepare('INSERT INTO products (id, name, price, category_id, image_url, image_hint, unit_of_measure_sale, tax_rate, stock) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
+        const prodStmt = await db.prepare('INSERT INTO products (name, price, category_id, image_url, image_hint, unit_of_measure_sale, tax_rate, stock, cost_price) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
         for (const prod of defaultProducts) {
-            await prodStmt.run(prod.id, prod.name, prod.price, prod.categoryId, prod.imageUrl, prod.imageHint, 'Unidad', 15, 100); // Start with 100 stock
+            await prodStmt.run(prod.name, prod.price, prod.categoryId, prod.imageUrl, prod.imageHint, 'Unidad', 15, 100, prod.price * 0.6); // Start with 100 stock and cost as 60% of price
         }
         await prodStmt.finalize();
 
