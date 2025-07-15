@@ -3,7 +3,7 @@
 
 import type { SmartUpsellInput } from '@/ai/flows/smart-upsell';
 import type { BudgetTrackingInput } from '@/ai/flows/ai-powered-budget-and-profitability-tracking';
-import type { User, Category, Product, Table, Shift, Order, OrderItem, Customer, PaymentMethod, CompletedOrderInfo, CompanyInfo, Supplier, Payment, CaiRecord, FullInvoiceData } from '@/lib/types';
+import type { User, Category, Product, Table, Shift, Order, OrderItem, Customer, PaymentMethod, CompletedOrderInfo, CompanyInfo, Supplier, Payment, CaiRecord, FullInvoiceData, PurchaseInvoice } from '@/lib/types';
 import { getDbConnection } from '@/lib/db';
 import { getSmartUpsellRecommendations } from '@/ai/flows/smart-upsell';
 import { aiPoweredBudgetAndProfitabilityTracking } from '@/ai/flows/ai-powered-budget-and-profitability-tracking';
@@ -34,7 +34,9 @@ async function getOrderFromDb(db: Database, orderId: number): Promise<Order | nu
             p.unit_of_measure_sale as unitOfMeasureSale,
             p.unit_of_measure_purchase as unitOfMeasurePurchase,
             p.is_active as isActive,
-            p.tax_rate as taxRate
+            p.tax_rate as taxRate,
+            p.stock,
+            p.cost_price
         FROM order_items oi
         JOIN products p ON oi.product_id = p.id
         WHERE oi.order_id = ?`,
@@ -56,6 +58,8 @@ async function getOrderFromDb(db: Database, orderId: number): Promise<Order | nu
             unitOfMeasurePurchase: item.unitOfMeasurePurchase,
             isActive: !!item.isActive,
             taxRate: item.taxRate,
+            stock: item.stock,
+            cost_price: item.cost_price,
         }
     }));
 
@@ -270,7 +274,7 @@ export async function getProductsByCategoryAction(categoryId: number): Promise<P
         const rows = await db.all<any[]>(
             `SELECT id, name, price, category_id as categoryId, image_url as imageUrl, image_hint as imageHint,
             unit_of_measure_sale as unitOfMeasureSale, unit_of_measure_purchase as unitOfMeasurePurchase,
-            is_active as isActive, tax_rate as taxRate
+            is_active as isActive, tax_rate as taxRate, stock, cost_price
             FROM products WHERE category_id = ? AND is_active = 1`,
             categoryId
         );
@@ -288,7 +292,7 @@ export async function searchProductsAction(query: string): Promise<Product[]> {
         const rows = await db.all<any[]>(
             `SELECT id, name, price, category_id as categoryId, image_url as imageUrl, image_hint as imageHint,
             unit_of_measure_sale as unitOfMeasureSale, unit_of_measure_purchase as unitOfMeasurePurchase,
-            is_active as isActive, tax_rate as taxRate
+            is_active as isActive, tax_rate as taxRate, stock, cost_price
             FROM products WHERE LOWER(name) LIKE LOWER(?) AND is_active = 1`,
             `%${query}%`
         );
@@ -298,6 +302,24 @@ export async function searchProductsAction(query: string): Promise<Product[]> {
         return [];
     }
 }
+
+export async function searchAllProductsAction(query: string): Promise<Product[]> {
+    try {
+        const db = await getDbConnection();
+        const rows = await db.all<any[]>(
+            `SELECT id, name, price, category_id as categoryId, image_url as imageUrl, image_hint as imageHint,
+            unit_of_measure_sale as unitOfMeasureSale, unit_of_measure_purchase as unitOfMeasurePurchase,
+            is_active as isActive, tax_rate as taxRate, stock, cost_price
+            FROM products WHERE LOWER(name) LIKE LOWER(?)`,
+            `%${query}%`
+        );
+        return rows.map(p => ({ ...p, isActive: !!p.isActive }));
+    } catch (error) {
+        console.error("Failed to search products:", error);
+        return [];
+    }
+}
+
 // #endregion
 
 // #region Table Actions
@@ -534,8 +556,8 @@ export async function processPaymentAction(orderId: number, payments: Payment[])
     await db.run('BEGIN TRANSACTION');
 
     try {
-        const order = await db.get<Order>("SELECT total_amount, table_id FROM orders WHERE id = ? AND status = 'pending'", orderId);
-        if (!order) {
+        const order = await getOrderFromDb(db, orderId);
+        if (!order || order.status !== 'pending') {
             throw new Error("Orden no encontrada o ya ha sido procesada.");
         }
 
@@ -556,6 +578,13 @@ export async function processPaymentAction(orderId: number, payments: Payment[])
         }
         await paymentStmt.finalize();
         
+        // Update stock
+        const updateStockStmt = await db.prepare("UPDATE products SET stock = stock - ? WHERE id = ?");
+        for (const item of order.items) {
+            await updateStockStmt.run(item.quantity, item.product.id);
+        }
+        await updateStockStmt.finalize();
+
         await db.run("UPDATE orders SET status = 'completed', invoice_number = ?, cai_id = ? WHERE id = ?", invoiceDetails.invoiceNumber, invoiceDetails.caiRecord.id, orderId);
 
         if (order.table_id) {
@@ -944,7 +973,7 @@ export async function getAdminProductsAction(): Promise<Product[]> {
         const rows = await db.all<any[]>(
             `SELECT id, name, price, category_id as categoryId, image_url as imageUrl, image_hint as imageHint,
             unit_of_measure_sale as unitOfMeasureSale, unit_of_measure_purchase as unitOfMeasurePurchase,
-            is_active as isActive, tax_rate as taxRate
+            is_active as isActive, tax_rate as taxRate, stock, cost_price
             FROM products ORDER BY name`
         );
         return rows.map(p => ({ ...p, isActive: !!p.isActive }));
@@ -954,26 +983,26 @@ export async function getAdminProductsAction(): Promise<Product[]> {
     }
 }
 
-export async function saveProductAction(product: Omit<Product, 'id'> & { id?: number }): Promise<{ success: boolean; data?: Product; error?: string }> {
+export async function saveProductAction(product: Omit<Product, 'id' | 'stock'> & { id?: number }): Promise<{ success: boolean; data?: Product; error?: string }> {
     try {
         const db = await getDbConnection();
-        const { id, name, price, categoryId, unitOfMeasureSale, unitOfMeasurePurchase, isActive, taxRate } = product;
+        const { id, name, price, categoryId, unitOfMeasureSale, unitOfMeasurePurchase, isActive, taxRate, cost_price } = product;
 
         let lastId = id;
 
         if (id) {
             // Update existing product
             await db.run(
-                `UPDATE products SET name = ?, price = ?, category_id = ?, unit_of_measure_sale = ?, 
+                `UPDATE products SET name = ?, price = ?, cost_price = ?, category_id = ?, unit_of_measure_sale = ?, 
                  unit_of_measure_purchase = ?, is_active = ?, tax_rate = ? WHERE id = ?`,
-                name, price, categoryId, unitOfMeasureSale, unitOfMeasurePurchase, isActive, taxRate, id
+                name, price, cost_price, categoryId, unitOfMeasureSale, unitOfMeasurePurchase, isActive, taxRate, id
             );
         } else {
             // Create new product
             const result = await db.run(
-                `INSERT INTO products (name, price, category_id, unit_of_measure_sale, unit_of_measure_purchase, is_active, tax_rate, image_url, image_hint) 
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                name, price, categoryId, unitOfMeasureSale, unitOfMeasurePurchase, isActive, taxRate, 'https://placehold.co/200x200.png', name
+                `INSERT INTO products (name, price, cost_price, category_id, unit_of_measure_sale, unit_of_measure_purchase, is_active, tax_rate, image_url, image_hint, stock) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+                name, price, cost_price, categoryId, unitOfMeasureSale, unitOfMeasurePurchase, isActive, taxRate, 'https://placehold.co/200x200.png', name
             );
             lastId = result.lastID!;
         }
@@ -985,7 +1014,7 @@ export async function saveProductAction(product: Omit<Product, 'id'> & { id?: nu
         const savedProductRaw = await db.get<any>(
             `SELECT id, name, price, category_id as categoryId, image_url as imageUrl, image_hint as imageHint,
             unit_of_measure_sale as unitOfMeasureSale, unit_of_measure_purchase as unitOfMeasurePurchase,
-            is_active as isActive, tax_rate as taxRate
+            is_active as isActive, tax_rate as taxRate, stock, cost_price
             FROM products WHERE id = ?`,
             lastId
         );
@@ -1344,6 +1373,72 @@ export async function savePaymentMethodAction(method: Omit<PaymentMethod, 'id'> 
     } catch (error: any) {
         console.error("Failed to save payment method:", error);
         return { success: false, error: "No se pudo guardar el medio de pago." };
+    }
+}
+// #endregion
+
+// #region Purchase/Inventory Actions
+
+export async function savePurchaseInvoiceAction(invoice: Omit<PurchaseInvoice, 'id' | 'totalAmount' | 'items'> & { items: { productId: number, quantity: number, cost: number }[] }): Promise<{ success: boolean; error?: string }> {
+    try {
+        const db = await getDbConnection();
+        await db.run('BEGIN TRANSACTION');
+        
+        try {
+            const { supplier, invoiceNumber, invoiceDate, items } = invoice;
+            
+            const totalAmount = items.reduce((sum, item) => sum + (item.quantity * item.cost), 0);
+            
+            const result = await db.run(
+                `INSERT INTO purchase_invoices (supplier_id, invoice_number, invoice_date, total_amount, created_at)
+                 VALUES (?, ?, ?, ?, ?)`,
+                supplier.id, invoiceNumber, invoiceDate.toISOString(), totalAmount, new Date().toISOString()
+            );
+
+            const purchaseInvoiceId = result.lastID!;
+
+            const itemStmt = await db.prepare('INSERT INTO purchase_invoice_items (purchase_invoice_id, product_id, quantity, cost_price_at_time) VALUES (?, ?, ?, ?)');
+            const stockStmt = await db.prepare('UPDATE products SET stock = stock + ?, cost_price = ? WHERE id = ?');
+            
+            for (const item of items) {
+                await itemStmt.run(purchaseInvoiceId, item.productId, item.quantity, item.cost);
+                await stockStmt.run(item.quantity, item.cost, item.productId);
+            }
+
+            await itemStmt.finalize();
+            await stockStmt.finalize();
+            
+            await db.run('COMMIT');
+            return { success: true };
+
+        } catch (innerError: any) {
+            await db.run('ROLLBACK');
+            throw innerError;
+        }
+
+    } catch (error: any) {
+        console.error('Failed to save purchase invoice:', error);
+        return { success: false, error: error.message || "No se pudo guardar la factura de compra." };
+    }
+}
+
+export async function getPurchaseInvoicesAction(): Promise<any[]> {
+    try {
+        const db = await getDbConnection();
+        return db.all<any[]>(`
+            SELECT
+                pi.id,
+                pi.invoice_number,
+                pi.invoice_date,
+                pi.total_amount,
+                s.name as supplier_name
+            FROM purchase_invoices pi
+            JOIN suppliers s ON pi.supplier_id = s.id
+            ORDER BY pi.invoice_date DESC
+        `);
+    } catch (error) {
+        console.error("Failed to get purchase invoices:", error);
+        return [];
     }
 }
 // #endregion

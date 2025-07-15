@@ -21,6 +21,7 @@ const menuItems = [
   { href: '/admin/medios-pago', label: 'Medios de Pago', icon: 'CreditCard' },
   { href: '/admin/proveedores', label: 'Proveedores', icon: 'Truck' },
   { href: '/admin/compras', label: 'Compras', icon: 'ShoppingCart' },
+  { href: '/admin/inventario', label: 'Inventario', icon: 'Warehouse' },
   { href: '/admin/usuarios', label: 'Usuarios', icon: 'Users' },
 ];
 
