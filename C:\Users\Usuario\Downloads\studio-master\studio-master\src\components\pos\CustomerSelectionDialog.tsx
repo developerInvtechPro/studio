@@ -36,11 +36,12 @@ export default function CustomerSelectionDialog({ isOpen, onOpenChange, onCustom
   }, [debouncedQuery]);
 
   useEffect(() => {
-    if (!isOpen) return;
-    fetchCustomers();
+    if (isOpen) {
+      fetchCustomers();
+    }
   }, [debouncedQuery, isOpen, fetchCustomers]);
   
-  // Reset search when closing
+  // Reset search when closing the main dialog
   useEffect(() => {
     if (!isOpen) {
       setQuery('');
@@ -59,7 +60,7 @@ export default function CustomerSelectionDialog({ isOpen, onOpenChange, onCustom
   }
 
   const onCustomerSaved = (savedCustomer: Customer) => {
-    fetchCustomers(); // Refetch to show the latest data
+    fetchCustomers(); // Refetch to show the latest data, including edits or new entries
     setFormOpen(false);
   };
 
@@ -109,7 +110,11 @@ export default function CustomerSelectionDialog({ isOpen, onOpenChange, onCustom
                           <Button 
                             variant="ghost" 
                             size="icon" 
-                            onClick={(e) => { e.stopPropagation(); handleEditClick(customer); }}
+                            onClick={(e) => { 
+                              e.stopPropagation(); // Evita que se seleccione el cliente al editar
+                              handleEditClick(customer); 
+                            }}
+                            aria-label={`Editar ${customer.name}`}
                           >
                               <Edit className="h-4 w-4" />
                           </Button>
@@ -137,5 +142,3 @@ export default function CustomerSelectionDialog({ isOpen, onOpenChange, onCustom
     </>
   );
 }
-
-    
