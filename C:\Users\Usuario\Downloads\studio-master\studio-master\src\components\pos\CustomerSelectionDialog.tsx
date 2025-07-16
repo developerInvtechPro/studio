@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -52,12 +51,12 @@ export default function CustomerSelectionDialog({ isOpen, onOpenChange, onCustom
   const handleEditClick = (customer: Customer) => {
     setSelectedCustomer(customer);
     setFormOpen(true);
-  }
+  };
 
   const handleNewClick = () => {
     setSelectedCustomer(null);
     setFormOpen(true);
-  }
+  };
 
   const onCustomerSaved = (savedCustomer: Customer) => {
     fetchCustomers(); // Refetch to show the latest data, including edits or new entries
