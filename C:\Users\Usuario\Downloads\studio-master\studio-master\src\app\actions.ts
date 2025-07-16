@@ -1266,10 +1266,10 @@ export async function saveCustomerAction(customer: Omit<Customer, 'id'> & { id?:
 
     } catch (error: any) {
         console.error("Failed to save customer:", error);
-        if (error.code === 'SQLITE_CONSTRAINT') {
+        if (error.code === 'SQLITE_CONSTRAINT' && error.message.includes('customers.rtn')) {
             return { success: false, error: "El RTN ya está registrado." };
         }
-        return { success: false, error: "No se pudo guardar el cliente." };
+        return { success: false, error: error.message || "No se pudo guardar el cliente." };
     }
 }
 
@@ -1442,3 +1442,5 @@ export async function getPurchaseInvoicesAction(): Promise<any[]> {
     }
 }
 // #endregion
+
+    

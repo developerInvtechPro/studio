@@ -66,8 +66,6 @@ export default function CustomerFormDialog({ isOpen, onOpenChange, customer, onC
         id: customer?.id 
     };
     
-    // In admin, we use saveCustomerAction, in POS we use createCustomerAction
-    // Let's use the more general one.
     const result = await saveCustomerAction(customerToSave);
 
     if (result.success && result.data) {
@@ -107,7 +105,7 @@ export default function CustomerFormDialog({ isOpen, onOpenChange, customer, onC
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>RTN</FormLabel>
-                  <FormControl><Input placeholder="0801..." {...field} /></FormControl>
+                  <FormControl><Input placeholder="0801..." {...field} value={field.value ?? ''} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )}
@@ -118,7 +116,7 @@ export default function CustomerFormDialog({ isOpen, onOpenChange, customer, onC
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Teléfono</FormLabel>
-                  <FormControl><Input placeholder="+504..." {...field} /></FormControl>
+                  <FormControl><Input placeholder="+504..." {...field} value={field.value ?? ''}/></FormControl>
                   <FormMessage />
                 </FormItem>
               )}
@@ -129,7 +127,7 @@ export default function CustomerFormDialog({ isOpen, onOpenChange, customer, onC
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Dirección</FormLabel>
-                  <FormControl><Textarea placeholder="Dirección completa..." {...field} /></FormControl>
+                  <FormControl><Textarea placeholder="Dirección completa..." {...field} value={field.value ?? ''} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )}
@@ -146,3 +144,5 @@ export default function CustomerFormDialog({ isOpen, onOpenChange, customer, onC
     </Dialog>
   );
 }
+
+    
