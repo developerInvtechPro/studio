@@ -144,5 +144,3 @@ export default function CustomerFormDialog({ isOpen, onOpenChange, customer, onC
     </Dialog>
   );
 }
-
-    

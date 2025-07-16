@@ -23,9 +23,10 @@ import { Table, TableBody, TableCell, TableRow, TableHead, TableHeader } from '@
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import Spinner from '../ui/spinner';
+import { Separator } from '../ui/separator';
 
 const formSchema = z.object({
-  supplierId: z.number({ required_error: 'Debe seleccionar un proveedor.' }),
+  supplierId: z.coerce.number({ required_error: 'Debe seleccionar un proveedor.' }),
   invoiceNumber: z.string().optional(),
   invoiceDate: z.date({ required_error: 'La fecha de factura es requerida.' }),
   items: z.array(z.object({
@@ -105,7 +106,7 @@ export default function PurchaseInvoiceForm({ isOpen, onOpenChange, suppliers, o
     setLoading(true);
     const invoiceToSave = {
         supplier: { id: data.supplierId } as Supplier,
-        invoiceNumber: data.invoiceNumber || null,
+        invoiceNumber: data.invoiceNumber || '',
         invoiceDate: data.invoiceDate,
         items: data.items.map(item => ({
             productId: item.productId,
@@ -200,7 +201,7 @@ export default function PurchaseInvoiceForm({ isOpen, onOpenChange, suppliers, o
                     render={({ field }) => (
                         <FormItem>
                             <FormLabel>Número de Factura</FormLabel>
-                            <FormControl><Input {...field} /></FormControl>
+                            <FormControl><Input {...field} value={field.value ?? ''} /></FormControl>
                             <FormMessage />
                         </FormItem>
                     )}
@@ -261,8 +262,8 @@ export default function PurchaseInvoiceForm({ isOpen, onOpenChange, suppliers, o
                         <Command>
                             <CommandList>
                                 {productSearchLoading && <div className="p-2"><Spinner size="sm" /></div>}
-                                {productResults.length === 0 && !productSearchLoading ? (
-                                    <div className="p-4 text-sm text-center text-muted-foreground">No se encontraron productos.</div>
+                                {!productSearchLoading && productResults.length === 0 ? (
+                                    <CommandEmpty>No se encontraron productos.</CommandEmpty>
                                 ) : (
                                     productResults.map((product) => (
                                         <CommandItem

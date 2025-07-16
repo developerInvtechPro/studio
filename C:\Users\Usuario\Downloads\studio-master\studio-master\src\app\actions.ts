@@ -1392,7 +1392,7 @@ export async function savePurchaseInvoiceAction(invoice: Omit<PurchaseInvoice, '
             const result = await db.run(
                 `INSERT INTO purchase_invoices (supplier_id, invoice_number, invoice_date, total_amount, created_at)
                  VALUES (?, ?, ?, ?, ?)`,
-                supplier.id, invoiceNumber, invoiceDate.toISOString(), totalAmount, new Date().toISOString()
+                supplier.id, invoiceNumber, invoiceDate, totalAmount, new Date().toISOString()
             );
 
             const purchaseInvoiceId = result.lastID!;
@@ -1442,5 +1442,3 @@ export async function getPurchaseInvoicesAction(): Promise<any[]> {
     }
 }
 // #endregion
-
-    

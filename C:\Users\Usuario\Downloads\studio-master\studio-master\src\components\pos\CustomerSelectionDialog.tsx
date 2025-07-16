@@ -100,20 +100,15 @@ export default function CustomerSelectionDialog({ isOpen, onOpenChange, onCustom
                     {results.map((customer) => (
                       <TableRow
                         key={customer.id}
-                        className="cursor-pointer"
-                        onClick={() => onCustomerSelect(customer)}
                       >
-                        <TableCell className="font-medium">{customer.name}</TableCell>
-                        <TableCell>{customer.rtn || 'N/A'}</TableCell>
-                        <TableCell>{customer.phone || 'N/A'}</TableCell>
+                        <TableCell className="font-medium cursor-pointer" onClick={() => onCustomerSelect(customer)}>{customer.name}</TableCell>
+                        <TableCell className="cursor-pointer" onClick={() => onCustomerSelect(customer)}>{customer.rtn || 'N/A'}</TableCell>
+                        <TableCell className="cursor-pointer" onClick={() => onCustomerSelect(customer)}>{customer.phone || 'N/A'}</TableCell>
                         <TableCell className="text-right">
                           <Button 
                             variant="ghost" 
                             size="icon" 
-                            onClick={(e) => { 
-                              e.stopPropagation(); // Evita que se seleccione el cliente al editar
-                              handleEditClick(customer); 
-                            }}
+                            onClick={() => handleEditClick(customer)}
                             aria-label={`Editar ${customer.name}`}
                           >
                               <Edit className="h-4 w-4" />
